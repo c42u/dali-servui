@@ -152,8 +152,8 @@ und wurde in Python mit Flask + Jinja2 umgesetzt.
 ┌──────────────▼──────────────────────────────────┐
 │  Treiber-Registry (drivers/)                    │
 │  ├── hasseb.py      (USB-HID)                   │
-│  ├── mikroe_gpio.py (Raspberry Pi GPIO)          │
-│  ├── mikroe_ftdi.py (FTDI FT2232H USB)           │
+│  ├── mikroe_gpio.py (Raspberry Pi GPIO)         │
+│  ├── mikroe_ftdi.py (FTDI FT2232H USB)          │
 │  └── dryrun.py      (Testmodus)                 │
 └──────────────┬──────────────────────────────────┘
                │
