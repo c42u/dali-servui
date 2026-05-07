@@ -78,7 +78,7 @@ national regulations (e. g. IEC 60364, BS 7671, NEC) must be observed.
 ### Native (Raspberry Pi / Debian / Ubuntu)
 
 ```bash
-git clone https://git.zucker.network/zucker/public-apps/dali-servui.git
+git clone https://github.com/c42u/dali-servui.git
 cd dali-servui/Code
 sudo ./install.sh install
 sudo systemctl start dali-servui
@@ -183,7 +183,7 @@ The software is provided "as is" without warranty. Use at your own risk.
 
 ## Links
 
-- [GitLab](https://git.zucker.network/zucker/public-apps/dali-servui)
+- [GitHub](https://github.com/c42u/dali-servui)
 - [Impressum / Legal Notice](IMPRESSUM.md)
 - [Support](https://buymeacoffee.com/c42u)
 
@@ -267,7 +267,7 @@ Vorschriften (z. B. DIN VDE 0100, ÖVE/ÖNORM E 8001, NIN) sind zu beachten.
 ### Nativ (Raspberry Pi / Debian / Ubuntu)
 
 ```bash
-git clone https://git.zucker.network/zucker/public-apps/dali-servui.git
+git clone https://github.com/c42u/dali-servui.git
 cd dali-servui/Code
 sudo ./install.sh install
 sudo systemctl start dali-servui
@@ -374,6 +374,6 @@ bereitgestellt. Nutzung auf eigene Gefahr.
 
 ## Links
 
-- [GitLab](https://git.zucker.network/zucker/public-apps/dali-servui)
+- [GitHub](https://github.com/c42u/dali-servui)
 - [Impressum](IMPRESSUM.md)
 - [Unterstützung](https://buymeacoffee.com/c42u)
