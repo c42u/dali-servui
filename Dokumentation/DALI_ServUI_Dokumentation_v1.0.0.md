@@ -244,7 +244,7 @@ wird dann als „nicht verfügbar" markiert.
 
 ```bash
 # Repository klonen
-git clone https://git.zucker.network/zucker/public-apps/dali-servui.git
+git clone https://github.com/c42u/dali-servui.git
 cd dali-servui
 
 # Container starten
