@@ -1,0 +1,43 @@
+# =============================================================================
+# DALI ServUI – .gitignore
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+env/
+
+# Sensible Daten
+.env
+*.key
+*.pem
+*.secret
+credentials.*
+config.local.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Build-Artefakte
+*.log
+node_modules/

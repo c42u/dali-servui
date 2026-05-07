@@ -1,0 +1,303 @@
+<!-- ========================================================================
+     DALI ServUI – Einstellungen mit Treiber-Auswahl
+     Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+     Version: 1.0.0 | Deploy: 2026-05-07
+     ======================================================================== -->
+{% extends "base.html" %}
+{% block title %}{{ t.settings_title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ t.settings_title }}</h1>
+</div>
+
+<!-- Treiber-Auswahl -->
+<div class="section">
+    <h2>DALI Hardware</h2>
+    <p class="section-desc">
+        {% if lang == 'de' %}
+            Wählen Sie den Treiber für Ihre DALI-Hardware. Die Änderung wird sofort wirksam.
+        {% else %}
+            Select the driver for your DALI hardware. Changes take effect immediately.
+        {% endif %}
+    </p>
+
+    <div class="driver-grid">
+        {% for driver in drivers %}
+        {% set is_mikroe = driver.id.startswith('mikroe_') %}
+        <div class="driver-card{% if driver.id == active_driver %} active{% endif %}{% if is_mikroe %} coming-soon{% endif %}"
+             data-driver-id="{{ driver.id }}">
+            {% if is_mikroe %}
+            <span class="coming-soon-stamp" aria-hidden="true">Coming Soon</span>
+            {% endif %}
+            <div class="driver-header">
+                <h3>{{ driver.name }}</h3>
+                {% if driver.id == active_driver %}
+                    <span class="status-badge status-connected">Aktiv</span>
+                {% elif driver.available %}
+                    <span class="status-badge" style="background:#dbeafe;color:#1e40af;">
+                        {% if lang == 'de' %}Verfügbar{% else %}Available{% endif %}
+                    </span>
+                {% else %}
+                    <span class="status-badge status-disconnected">
+                        {% if lang == 'de' %}Nicht verfügbar{% else %}Unavailable{% endif %}
+                    </span>
+                {% endif %}
+            </div>
+
+            <p class="driver-desc">
+                {% if lang == 'de' %}{{ driver.description_de }}{% else %}{{ driver.description_en }}{% endif %}
+            </p>
+
+            {% if driver.requires %}
+            <div class="driver-requires">
+                <small>
+                    {% if lang == 'de' %}Benötigt:{% else %}Requires:{% endif %}
+                    {{ driver.requires|join(', ') }}
+                </small>
+            </div>
+            {% endif %}
+
+            <!-- Treiber-spezifische Konfigurationsfelder -->
+            {% if driver.config_fields %}
+            <div class="driver-config" id="config-{{ driver.id }}"
+                 {% if driver.id != active_driver %}style="display:none;"{% endif %}>
+                {% for field in driver.config_fields %}
+                <div class="config-field">
+                    <label for="field-{{ driver.id }}-{{ field.id }}">
+                        {% if lang == 'de' %}{{ field.label_de }}{% else %}{{ field.label_en }}{% endif %}:
+                    </label>
+                    {% if field.type == 'checkbox' %}
+                        <input type="checkbox" id="field-{{ driver.id }}-{{ field.id }}"
+                               data-config-key="{{ field.id }}"
+                               {% if driver_config[field.id] is defined and driver_config[field.id] %}checked{% endif %}>
+                    {% elif field.type == 'number' %}
+                        <input type="number" id="field-{{ driver.id }}-{{ field.id }}"
+                               data-config-key="{{ field.id }}"
+                               value="{{ driver_config[field.id] if driver_config[field.id] is defined else field.default }}"
+                               min="{{ field.min }}" max="{{ field.max }}" class="input-sm">
+                    {% else %}
+                        <input type="text" id="field-{{ driver.id }}-{{ field.id }}"
+                               data-config-key="{{ field.id }}"
+                               value="{{ driver_config[field.id] if driver_config[field.id] is defined else field.default }}"
+                               class="input-sm">
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="driver-actions">
+                {% if is_mikroe %}
+                    <button class="btn btn-secondary" disabled aria-disabled="true">
+                        {% if lang == 'de' %}In Vorbereitung{% else %}In preparation{% endif %}
+                    </button>
+                {% elif driver.id != active_driver %}
+                    <button class="btn btn-primary"
+                            onclick="switchDriver('{{ driver.id }}')"
+                            {% if not driver.available %}disabled{% endif %}>
+                        {% if lang == 'de' %}Aktivieren{% else %}Activate{% endif %}
+                    </button>
+                {% else %}
+                    {% if driver.config_fields %}
+                    <button class="btn btn-primary" onclick="switchDriver('{{ driver.id }}')">
+                        {% if lang == 'de' %}Konfiguration anwenden{% else %}Apply Configuration{% endif %}
+                    </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="driver-status" class="status-message" style="display:none;"></div>
+</div>
+
+<!-- Feature-Toggles DT6/DT8 -->
+<div class="section">
+    <h2>{% if lang == 'de' %}DALI Device Types{% else %}DALI Device Types{% endif %}</h2>
+    <p class="section-desc">
+        {% if lang == 'de' %}
+            Aktivieren Sie die Device-Type-Unterstützung passend zu Ihrer Beleuchtung.
+            Die Steuerelemente werden erst nach Aktivierung in der Oberfläche angezeigt.
+        {% else %}
+            Enable device type support matching your lighting. Controls will appear
+            in the interface only after activation.
+        {% endif %}
+    </p>
+
+    <div class="feature-toggles">
+        <label class="toggle-row">
+            <input type="checkbox" id="feature-dt6" {% if feature_dt6 %}checked{% endif %}
+                   onchange="saveFeatures()">
+            <div class="toggle-info">
+                <strong>DT6 – LED Gear</strong>
+                <span class="toggle-desc">
+                    {% if lang == 'de' %}
+                        LED-spezifische Funktionen (Betriebsmodus, Thermal-Status)
+                    {% else %}
+                        LED-specific functions (operating mode, thermal status)
+                    {% endif %}
+                </span>
+            </div>
+        </label>
+
+        <label class="toggle-row">
+            <input type="checkbox" id="feature-dt8-tc" {% if feature_dt8_tc %}checked{% endif %}
+                   onchange="saveFeatures()">
+            <div class="toggle-info">
+                <strong>DT8 – Tunable White</strong>
+                <span class="toggle-desc">
+                    {% if lang == 'de' %}
+                        Farbtemperatur-Steuerung (2700K warm bis 6500K kalt)
+                    {% else %}
+                        Colour temperature control (2700K warm to 6500K cool)
+                    {% endif %}
+                </span>
+            </div>
+        </label>
+
+        <label class="toggle-row">
+            <input type="checkbox" id="feature-dt8-rgb" {% if feature_dt8_rgb %}checked{% endif %}
+                   onchange="saveFeatures()">
+            <div class="toggle-info">
+                <strong>DT8 – RGB</strong>
+                <span class="toggle-desc">
+                    {% if lang == 'de' %}
+                        RGB-Farbsteuerung für mehrfarbige Leuchten
+                    {% else %}
+                        RGB colour control for multi-colour luminaires
+                    {% endif %}
+                </span>
+            </div>
+        </label>
+    </div>
+    <div id="feature-status" class="status-message" style="display:none;"></div>
+</div>
+
+<!-- Sprache -->
+<div class="section">
+    <h2>{{ t.language }}</h2>
+    <div class="setting-row">
+        <a href="{{ url_for('set_language', lang='de') }}"
+           class="btn {% if lang == 'de' %}btn-primary{% else %}btn-default{% endif %}">
+            {{ t.lang_de }}
+        </a>
+        <a href="{{ url_for('set_language', lang='en') }}"
+           class="btn {% if lang == 'en' %}btn-primary{% else %}btn-default{% endif %}">
+            {{ t.lang_en }}
+        </a>
+    </div>
+</div>
+
+<!-- Service-Info -->
+<div class="section">
+    <h2>Service-Info</h2>
+    <table class="info-table">
+        <tr><td>Version</td><td>{{ version }}</td></tr>
+        <tr><td>{{ t.firmware }}</td><td id="info-firmware">–</td></tr>
+        <tr><td>Status</td><td id="info-status">–</td></tr>
+        <tr><td>Treiber</td><td id="info-driver">–</td></tr>
+        <tr><td>{{ t.devices_found }}</td><td id="info-devices">–</td></tr>
+    </table>
+    <button class="btn btn-primary" onclick="loadServiceInfo()" style="margin-top: 1rem;">
+        {{ t.refresh }}
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Service-Info beim Laden abrufen
+    loadServiceInfo();
+
+    // Treiber-Karten: Config-Felder ein-/ausblenden bei Klick
+    document.querySelectorAll('.driver-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Nicht bei Button- oder Input-Klicks
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+
+            const driverId = this.dataset.driverId;
+            const configEl = document.getElementById('config-' + driverId);
+            if (configEl) {
+                configEl.style.display = configEl.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+    });
+
+    /**
+     * Feature-Toggles speichern
+     */
+    async function saveFeatures() {
+        const statusEl = document.getElementById('feature-status');
+        const payload = {
+            dt6: document.getElementById('feature-dt6').checked,
+            dt8_tc: document.getElementById('feature-dt8-tc').checked,
+            dt8_rgb: document.getElementById('feature-dt8-rgb').checked
+        };
+
+        const result = await apiPost('/api/v1/features', payload);
+
+        statusEl.style.display = 'block';
+        if (result.success) {
+            statusEl.className = 'status-message success';
+            statusEl.textContent = 'Features gespeichert';
+            setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+        } else {
+            statusEl.className = 'status-message error';
+            statusEl.textContent = 'Fehler: ' + (result.error || 'Unbekannt');
+        }
+    }
+
+    /**
+     * Treiber wechseln und Konfiguration senden
+     */
+    async function switchDriver(driverId) {
+        const statusEl = document.getElementById('driver-status');
+
+        // Konfigurationsfelder sammeln
+        const configEl = document.getElementById('config-' + driverId);
+        const payload = { driver_id: driverId };
+
+        if (configEl) {
+            configEl.querySelectorAll('[data-config-key]').forEach(input => {
+                const key = input.dataset.configKey;
+                if (input.type === 'checkbox') {
+                    payload[key] = input.checked;
+                } else if (input.type === 'number') {
+                    payload[key] = parseInt(input.value);
+                } else {
+                    payload[key] = input.value;
+                }
+            });
+        }
+
+        statusEl.style.display = 'block';
+        statusEl.className = 'status-message info';
+        statusEl.textContent = 'Treiber wird gewechselt...';
+
+        const result = await apiPost('/api/v1/drivers/switch', payload);
+
+        if (result.success) {
+            statusEl.className = 'status-message success';
+            statusEl.textContent = 'Treiber gewechselt: ' + result.driver;
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            statusEl.className = 'status-message error';
+            statusEl.textContent = 'Fehler: ' + (result.error || 'Unbekannt');
+        }
+    }
+
+    /**
+     * Service-Info laden (erweitert um Treiber-Info)
+     */
+    async function loadServiceInfo() {
+        const result = await apiRequest('/api/v1/status');
+        const el = (id) => document.getElementById(id);
+        if (el('info-firmware')) el('info-firmware').textContent = result.firmware || '–';
+        if (el('info-status')) el('info-status').textContent = result.connected ? 'Verbunden' : 'Nicht verbunden';
+        if (el('info-driver')) el('info-driver').textContent = result.driver || '–';
+        if (el('info-devices')) el('info-devices').textContent = result.devices || '0';
+    }
+</script>
+{% endblock %}

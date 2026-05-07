@@ -1,0 +1,124 @@
+<!-- ========================================================================
+     DALI ServUI – Basis-Template
+     Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+     Version: 1.0.0 | Deploy: 2026-05-07
+     ======================================================================== -->
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# API-Token wird nur in den DOM geschrieben, wenn DALI_API_TOKEN gesetzt
+       ist. JS sendet ihn dann als X-API-Token-Header bei jedem Fetch. Ist
+       das Token leer, bleibt das Meta-Tag leer und das Frontend funktioniert
+       ohne Header (klassischer LAN-Betrieb ohne Auth). #}
+    <meta name="x-api-token" content="{{ api_token|default('', true) }}">
+    <title>{{ t.app_name }} – {% block title %}{{ t.dashboard_title }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Lucide SVG Sprite (ISC License, https://lucide.dev) -->
+    {% include "icons-sprite.html" %}
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <svg class="nav-icon nav-icon-logo"><use href="#icon-sun"/></svg>
+            <span class="navbar-title">{{ t.app_name }}</span>
+        </div>
+
+        <div class="navbar-menu">
+            <div class="nav-dropdown" tabindex="0">
+                <a href="{{ url_for('dashboard_page', dashboard_id=active_dashboard) }}"
+                   class="nav-link {% if request.endpoint == 'dashboard_page' %}active{% endif %}">
+                    <svg class="nav-icon"><use href="#icon-layout-dashboard"/></svg>
+                    <span>{{ t.nav_dashboard }}</span>
+                    <span class="nav-chevron">&#9662;</span>
+                </a>
+                <div class="nav-dropdown-menu">
+                    {% for did, dcfg in dashboards.items()|sort(attribute='1.order') %}
+                    <a href="{{ url_for('dashboard_page', dashboard_id=did) }}"
+                       class="nav-dropdown-item {% if did == active_dashboard and request.endpoint == 'dashboard_page' %}active{% endif %}">
+                        {{ dcfg.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <a href="{{ url_for('devices_page') }}" class="nav-link {% if request.endpoint == 'devices_page' %}active{% endif %}">
+                <svg class="nav-icon"><use href="#icon-lightbulb"/></svg>
+                <span>{{ t.nav_devices }}</span>
+            </a>
+            <a href="{{ url_for('groups_page') }}" class="nav-link {% if request.endpoint == 'groups_page' %}active{% endif %}">
+                <svg class="nav-icon"><use href="#icon-group"/></svg>
+                <span>{{ t.nav_groups }}</span>
+            </a>
+            <a href="{{ url_for('discovery_page') }}" class="nav-link {% if request.endpoint == 'discovery_page' %}active{% endif %}">
+                <svg class="nav-icon"><use href="#icon-search"/></svg>
+                <span>{{ t.nav_discovery }}</span>
+            </a>
+            <a href="{{ url_for('settings_page') }}" class="nav-link {% if request.endpoint == 'settings_page' %}active{% endif %}">
+                <svg class="nav-icon"><use href="#icon-settings"/></svg>
+                <span>{{ t.nav_settings }}</span>
+            </a>
+            <a href="{{ url_for('buslog_page') }}" class="nav-link {% if request.endpoint == 'buslog_page' %}active{% endif %}">
+                <svg class="nav-icon"><use href="#icon-activity"/></svg>
+                <span>{{ t.nav_log }}</span>
+            </a>
+            <a href="{{ url_for('help_page') }}" class="nav-link {% if request.endpoint == 'help_page' %}active{% endif %}">
+                <svg class="nav-icon"><use href="#icon-help-circle"/></svg>
+                <span>{{ t.nav_help }}</span>
+            </a>
+            <a href="https://buymeacoffee.com/c42u"
+               target="_blank" rel="noopener noreferrer"
+               class="nav-link nav-link-coffee"
+               title="{% if lang == 'de' %}Spendiere mir einen Kaffee{% else %}Buy me a coffee{% endif %}">
+                <svg class="nav-icon"><use href="#icon-coffee"/></svg>
+                <span>{% if lang == 'de' %}Kaffee{% else %}Coffee{% endif %}</span>
+            </a>
+        </div>
+
+        <div class="navbar-status">
+            <!-- Globaler Aktivitäts-Indikator -->
+            <span class="activity-indicator" id="activity-indicator" style="display:none;"
+                  title="{% if lang == 'de' %}Aktion läuft...{% else %}Action in progress...{% endif %}">
+                <svg class="nav-icon-sm spinner"><use href="#icon-activity"/></svg>
+            </span>
+
+            {% if is_dryrun %}
+                <span class="status-badge status-dryrun">{{ t.status_dryrun }}</span>
+            {% elif is_connected %}
+                <span class="status-badge status-connected">
+                    <svg class="nav-icon-sm"><use href="#icon-wifi"/></svg>
+                    {{ t.status_connected }}
+                </span>
+            {% else %}
+                <span class="status-badge status-disconnected">
+                    <svg class="nav-icon-sm"><use href="#icon-wifi-off"/></svg>
+                    {{ t.status_disconnected }}
+                </span>
+            {% endif %}
+
+            <!-- Sprachwechsel -->
+            <div class="lang-switch">
+                <a href="{{ url_for('set_language', lang='de') }}" class="lang-btn {% if lang == 'de' %}active{% endif %}">DE</a>
+                <a href="{{ url_for('set_language', lang='en') }}" class="lang-btn {% if lang == 'en' %}active{% endif %}">EN</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hauptinhalt -->
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <span>{{ t.app_name }} v{{ version }}</span>
+        <span>c42u | GPLv3 | Icons: <a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a> (ISC)</span>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

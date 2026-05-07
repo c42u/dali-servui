@@ -1,0 +1,50 @@
+<!-- Gruppen-Karte (wiederverwendbares Partial) -->
+{% set members_on = members|selectattr('level', '>', 0)|list %}
+{% set members_absent = members|rejectattr('present')|list %}
+{% set all_on = (members_on|length == members|length) %}
+{% if all_on and members_absent|length > 0 %}
+    {% set group_state = 'warning' %}
+{% elif all_on %}
+    {% set group_state = 'on' %}
+{% else %}
+    {% set group_state = 'off' %}
+{% endif %}
+<div class="group-card group-{{ group_state }}" data-group="{{ group_id }}">
+    <div class="group-header">
+        <h3>
+            <input type="text" class="inline-edit inline-edit-lg"
+                   value="{{ labels.groups.get(group_id|string, '') }}"
+                   placeholder="{{ t.group }} {{ group_id }}"
+                   onchange="setGroupLabel({{ group_id }}, this.value)">
+        </h3>
+        <span class="member-count">
+            {{ members_on|length }}/{{ members|length }}
+            {% if members_absent|length > 0 %}
+                <span class="member-warning-icon" title="{% if lang == 'de' %}{{ members_absent|length }} Gerät(e) nicht erreichbar{% else %}{{ members_absent|length }} device(s) unreachable{% endif %}">&#9888;</span>
+            {% endif %}
+        </span>
+    </div>
+    <div class="group-controls">
+        <button class="btn {% if all_on %}btn-off{% else %}btn-on{% endif %} group-toggle-btn"
+                onclick="groupToggle({{ group_id }}, this)"
+                data-on="{% if all_on %}1{% else %}0{% endif %}"
+                data-label-on="{{ t.device_on }}"
+                data-label-off="{{ t.device_off }}">
+            {% if all_on %}{{ t.device_off }}{% else %}{{ t.device_on }}{% endif %}
+        </button>
+    </div>
+    <div class="group-slider">
+        <label>{{ t.brightness }}:</label>
+        <input type="range" min="0" max="254" value="127"
+               onchange="groupLevel({{ group_id }}, this.value)">
+    </div>
+    <div class="group-members">
+        {% for dev in members %}
+        {% set dev_name = labels.devices.get(dev.address|string, '') or ('#' ~ dev.address) %}
+        <span class="member-badge {% if not dev.present %}member-warning{% elif dev.level > 0 %}member-on{% else %}member-off{% endif %}"
+              title="Addr {{ dev.address }} – Level {{ dev.level }}{% if not dev.present %} – {% if lang == 'de' %}nicht erreichbar{% else %}unreachable{% endif %}{% endif %}">
+            {{ dev_name }}
+        </span>
+        {% endfor %}
+    </div>
+</div>

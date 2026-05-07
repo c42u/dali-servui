@@ -1,0 +1,414 @@
+<!-- ========================================================================
+     DALI ServUI – Dashboard (Multi-Dashboard)
+     Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+     Version: 1.0.0 | Deploy: 2026-05-07
+     ======================================================================== -->
+{% extends "base.html" %}
+{% block title %}{{ dashboard_config.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ dashboard_config.name }}</h1>
+    <button class="btn btn-default" onclick="openDashboardEditor()"
+            title="{% if lang == 'de' %}Dashboards verwalten{% else %}Manage dashboards{% endif %}">
+        <svg class="nav-icon"><use href="#icon-settings"/></svg>
+    </button>
+</div>
+
+{% if dashboard_config.show_status_cards %}
+<!-- Status-Karten -->
+<div class="card-grid">
+    <div class="card card-status">
+        <div class="card-icon">&#9889;</div>
+        <div class="card-body">
+            <div class="card-label">Status</div>
+            <div class="card-value">
+                {% if is_dryrun %}
+                    {{ t.status_dryrun }}
+                {% elif is_connected %}
+                    {{ t.status_connected }}
+                {% else %}
+                    {{ t.status_disconnected }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#128268;</div>
+        <div class="card-body">
+            <div class="card-label">{{ t.firmware }}</div>
+            <div class="card-value">{{ firmware or '–' }}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#128161;</div>
+        <div class="card-body">
+            <div class="card-label">{{ t.devices_found }}</div>
+            <div class="card-value">{{ devices|length }}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-icon">&#128203;</div>
+        <div class="card-body">
+            <div class="card-label">{{ t.queue_size }}</div>
+            <div class="card-value" id="queue-size">{{ queue_size }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if dashboard_config.show_broadcast %}
+<!-- Schnellsteuerung -->
+<div class="section">
+    <h2>{{ t.broadcast }}</h2>
+    <div class="control-bar">
+        <button class="btn btn-on" onclick="broadcastOn()">{{ t.device_on }}</button>
+        <button class="btn btn-off" onclick="broadcastOff()">{{ t.device_off }}</button>
+        <div class="slider-group">
+            <label for="broadcast-level">{{ t.brightness }}:</label>
+            <input type="range" id="broadcast-level" min="0" max="254" value="127"
+                   oninput="updateSliderLabel(this, 'broadcast-level-val')">
+            <span id="broadcast-level-val">127</span>
+            <button class="btn btn-primary" onclick="broadcastLevel()">{{ t.apply }}</button>
+        </div>
+    </div>
+
+    {% if feature_dt8_tc %}
+    <div class="colour-controls">
+        <div class="tc-slider-group">
+            <label>&#9728;</label>
+            <input type="range" id="broadcast-tc" class="tc-slider" min="153" max="370" value="250"
+                   oninput="updateTcLabel(this, 'broadcast-tc-val')">
+            <span class="tc-value" id="broadcast-tc-val">4000K</span>
+            <button class="btn btn-primary" onclick="broadcastColourTemp()">{{ t.apply }}</button>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if feature_dt8_rgb %}
+    <div class="colour-controls">
+        <div class="colour-picker-wrap">
+            <label>RGB:</label>
+            <input type="color" id="broadcast-rgb" value="#ffffff"
+                   onchange="broadcastRgbFromPicker(this.value)">
+            <span id="broadcast-rgb-val">#ffffff</span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Geräte -->
+{% if devices %}
+<div class="section">
+    <h2>{{ t.devices_title }}</h2>
+    <div class="device-grid">
+        {% for addr, dev in devices.items() %}
+        <div class="device-card" data-address="{{ addr }}">
+            <div class="device-header">
+                <span class="device-addr">{{ labels.devices.get(addr|string, '') or ('#' ~ addr) }}</span>
+                <span class="device-indicator {% if dev.level > 0 %}on{% else %}off{% endif %}"></span>
+            </div>
+            <div class="device-level-bar">
+                <div class="device-level-fill" style="width: {{ (dev.level / 254 * 100)|round }}%"></div>
+            </div>
+            <div class="device-controls">
+                <button class="btn-sm btn-on" onclick="deviceOn({{ addr }})">{{ t.device_on }}</button>
+                <button class="btn-sm btn-off" onclick="deviceOff({{ addr }})">{{ t.device_off }}</button>
+            </div>
+            <div class="device-slider">
+                <input type="range" min="0" max="254" value="{{ dev.level }}"
+                       onchange="deviceLevel({{ addr }}, this.value)">
+            </div>
+            {% if feature_dt8_tc and dev.supports_tc %}
+            <div class="colour-controls">
+                <div class="tc-slider-group">
+                    <label>&#9728;</label>
+                    <input type="range" class="tc-slider" min="153" max="370"
+                           value="{{ dev.colour_temp_mirek or 250 }}"
+                           oninput="updateTcLabel(this, 'tc-val-{{ addr }}')"
+                           onchange="deviceColourTemp({{ addr }}, this.value)">
+                    <span class="tc-value" id="tc-val-{{ addr }}">{{ (1000000 // dev.colour_temp_mirek) if dev.colour_temp_mirek > 0 else 4000 }}K</span>
+                </div>
+            </div>
+            {% endif %}
+            {% if feature_dt8_rgb and dev.supports_rgb %}
+            <div class="colour-controls">
+                <div class="colour-picker-wrap">
+                    <input type="color" value="#ffffff"
+                           onchange="deviceRgbFromPicker({{ addr }}, this.value)">
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Gruppen -->
+{% if groups %}
+<div class="section">
+    <h2>{{ t.groups_title }}</h2>
+    <div class="group-grid">
+        {% for group_id, members in groups.items()|sort %}
+            {% include '_group_card.html' %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Dashboard-Editor Modal -->
+<div id="dashboard-editor" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeDashboardEditor()">
+    <div class="modal-box" style="max-width:550px;">
+        <!-- Ansicht 1: Dashboard-Liste -->
+        <div id="db-list-view">
+            <h3>{% if lang == 'de' %}Dashboards verwalten{% else %}Manage Dashboards{% endif %}</h3>
+            <div id="db-list"></div>
+            <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+                <button class="btn btn-primary" onclick="openDashboardForm()">
+                    {% if lang == 'de' %}Neues Dashboard{% else %}New Dashboard{% endif %}
+                </button>
+                <button class="btn btn-default" onclick="closeDashboardEditor()">
+                    {{ t.cancel }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Ansicht 2: Dashboard bearbeiten/erstellen -->
+        <div id="db-form-view" style="display:none;">
+            <h3 id="db-form-title">{% if lang == 'de' %}Neues Dashboard{% else %}New Dashboard{% endif %}</h3>
+            <input type="hidden" id="db-form-id" value="">
+
+            <div class="config-field" style="margin-bottom:0.75rem;">
+                <label for="db-name">{% if lang == 'de' %}Name:{% else %}Name:{% endif %}</label>
+                <input type="text" id="db-name" class="input-sm" style="width:100%;"
+                       placeholder="{% if lang == 'de' %}z.B. Wohnzimmer{% else %}e.g. Living Room{% endif %}">
+            </div>
+
+            <label class="toggle-row" style="margin-bottom:0.5rem;">
+                <input type="checkbox" id="db-show-status">
+                <span>{% if lang == 'de' %}Statuskarten anzeigen{% else %}Show status cards{% endif %}</span>
+            </label>
+            <label class="toggle-row" style="margin-bottom:0.75rem;">
+                <input type="checkbox" id="db-show-broadcast">
+                <span>{% if lang == 'de' %}Broadcast-Steuerung{% else %}Broadcast control{% endif %}</span>
+            </label>
+
+            <h4 style="margin-bottom:0.5rem;">{% if lang == 'de' %}Geräte{% else %}Devices{% endif %}</h4>
+            <label class="toggle-row" style="margin-bottom:0.5rem;">
+                <input type="checkbox" id="db-all-devices" onchange="toggleDeviceList()">
+                <span>{% if lang == 'de' %}Alle Geräte{% else %}All devices{% endif %}</span>
+            </label>
+            <div id="db-device-list" class="db-checklist"></div>
+
+            <h4 style="margin:0.75rem 0 0.5rem;">{% if lang == 'de' %}Gruppen{% else %}Groups{% endif %}</h4>
+            <label class="toggle-row" style="margin-bottom:0.5rem;">
+                <input type="checkbox" id="db-all-groups" onchange="toggleGroupList()">
+                <span>{% if lang == 'de' %}Alle Gruppen{% else %}All groups{% endif %}</span>
+            </label>
+            <div id="db-group-list" class="db-checklist"></div>
+
+            <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+                <button class="btn btn-primary" onclick="saveDashboard()">
+                    {{ t.save }}
+                </button>
+                <button class="btn btn-default" onclick="showListView()">
+                    {{ t.cancel }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// --- Dashboard-Editor ---
+let _dbDevices = {};
+let _dbGroups = {};
+let _dbLabels = {};
+
+async function openDashboardEditor() {
+    document.getElementById('dashboard-editor').style.display = 'flex';
+    showListView();
+    // Geräte + Gruppen für den Editor laden
+    const [devResp, grpResp, lblResp] = await Promise.all([
+        apiRequest('/api/v1/devices'),
+        apiRequest('/api/v1/groups'),
+        apiRequest('/api/v1/labels')
+    ]);
+    _dbDevices = devResp;
+    _dbGroups = grpResp;
+    _dbLabels = lblResp;
+    await loadDashboardList();
+}
+
+function closeDashboardEditor() {
+    document.getElementById('dashboard-editor').style.display = 'none';
+}
+
+function showListView() {
+    document.getElementById('db-list-view').style.display = 'block';
+    document.getElementById('db-form-view').style.display = 'none';
+}
+
+async function loadDashboardList() {
+    const data = await apiRequest('/api/v1/dashboards');
+    const list = document.getElementById('db-list');
+    const dbs = Object.entries(data.dashboards || {})
+        .sort((a, b) => (a[1].order || 0) - (b[1].order || 0));
+
+    list.innerHTML = dbs.map(([id, cfg]) => `
+        <div class="db-list-item">
+            <a href="/dashboard/${id}" class="db-list-name">${cfg.name}</a>
+            <div class="db-list-actions">
+                <button class="btn-sm btn-on" onclick="openDashboardForm('${id}')">
+                    {% if lang == 'de' %}Bearbeiten{% else %}Edit{% endif %}
+                </button>
+                ${id !== 'default' ? `<button class="btn-sm btn-off" onclick="deleteDashboard('${id}')">
+                    {% if lang == 'de' %}Löschen{% else %}Delete{% endif %}
+                </button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function openDashboardForm(editId) {
+    document.getElementById('db-list-view').style.display = 'none';
+    document.getElementById('db-form-view').style.display = 'block';
+
+    const titleEl = document.getElementById('db-form-title');
+    const idField = document.getElementById('db-form-id');
+
+    // Device-Checkliste aufbauen
+    const devList = document.getElementById('db-device-list');
+    devList.innerHTML = Object.entries(_dbDevices)
+        .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+        .map(([addr, dev]) => {
+            const name = (_dbLabels.devices || {})[addr] || `#${addr}`;
+            return `<label class="db-check-item">
+                <input type="checkbox" value="${addr}" class="db-dev-cb">
+                <span>${name}</span>
+            </label>`;
+        }).join('');
+
+    // Group-Checkliste aufbauen
+    const grpList = document.getElementById('db-group-list');
+    grpList.innerHTML = Object.entries(_dbGroups)
+        .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+        .map(([gid, grp]) => {
+            const name = grp.name || `{% if lang == 'de' %}Gruppe{% else %}Group{% endif %} ${gid}`;
+            return `<label class="db-check-item">
+                <input type="checkbox" value="${gid}" class="db-grp-cb">
+                <span>${name} (${grp.members ? grp.members.length : 0})</span>
+            </label>`;
+        }).join('');
+
+    if (editId) {
+        // Bearbeiten: Werte laden
+        titleEl.textContent = '{% if lang == "de" %}Dashboard bearbeiten{% else %}Edit Dashboard{% endif %}';
+        idField.value = editId;
+        const cfg = await apiRequest(`/api/v1/dashboards/${editId}`);
+        document.getElementById('db-name').value = cfg.name || '';
+        document.getElementById('db-show-status').checked = cfg.show_status_cards || false;
+        document.getElementById('db-show-broadcast').checked = cfg.show_broadcast || false;
+
+        // Items auswerten
+        const items = cfg.items || [];
+        const hasAllDev = items.some(i => i.type === 'all_devices');
+        const hasAllGrp = items.some(i => i.type === 'all_groups');
+        document.getElementById('db-all-devices').checked = hasAllDev;
+        document.getElementById('db-all-groups').checked = hasAllGrp;
+
+        // Einzelauswahl setzen
+        const selDevs = items.filter(i => i.type === 'device').map(i => String(i.address));
+        const selGrps = items.filter(i => i.type === 'group').map(i => String(i.id));
+        devList.querySelectorAll('.db-dev-cb').forEach(cb => {
+            cb.checked = selDevs.includes(cb.value);
+        });
+        grpList.querySelectorAll('.db-grp-cb').forEach(cb => {
+            cb.checked = selGrps.includes(cb.value);
+        });
+    } else {
+        // Neu: Felder zurücksetzen
+        titleEl.textContent = '{% if lang == "de" %}Neues Dashboard{% else %}New Dashboard{% endif %}';
+        idField.value = '';
+        document.getElementById('db-name').value = '';
+        document.getElementById('db-show-status').checked = false;
+        document.getElementById('db-show-broadcast').checked = false;
+        document.getElementById('db-all-devices').checked = true;
+        document.getElementById('db-all-groups').checked = false;
+        devList.querySelectorAll('.db-dev-cb').forEach(cb => cb.checked = false);
+        grpList.querySelectorAll('.db-grp-cb').forEach(cb => cb.checked = false);
+    }
+    toggleDeviceList();
+    toggleGroupList();
+}
+
+function toggleDeviceList() {
+    const all = document.getElementById('db-all-devices').checked;
+    document.getElementById('db-device-list').style.display = all ? 'none' : 'flex';
+}
+
+function toggleGroupList() {
+    const all = document.getElementById('db-all-groups').checked;
+    document.getElementById('db-group-list').style.display = all ? 'none' : 'flex';
+}
+
+async function saveDashboard() {
+    const id = document.getElementById('db-form-id').value;
+    const name = document.getElementById('db-name').value.trim();
+    if (!name) { alert('{% if lang == "de" %}Name erforderlich{% else %}Name required{% endif %}'); return; }
+
+    // Items zusammenbauen
+    const items = [];
+    if (document.getElementById('db-all-devices').checked) {
+        items.push({type: 'all_devices'});
+    } else {
+        document.querySelectorAll('.db-dev-cb:checked').forEach(cb => {
+            items.push({type: 'device', address: parseInt(cb.value)});
+        });
+    }
+    if (document.getElementById('db-all-groups').checked) {
+        items.push({type: 'all_groups'});
+    } else {
+        document.querySelectorAll('.db-grp-cb:checked').forEach(cb => {
+            items.push({type: 'group', id: parseInt(cb.value)});
+        });
+    }
+
+    const payload = {
+        name,
+        show_status_cards: document.getElementById('db-show-status').checked,
+        show_broadcast: document.getElementById('db-show-broadcast').checked,
+        items
+    };
+
+    if (id) {
+        await apiRequest(`/api/v1/dashboards/${id}`, {
+            method: 'PUT', body: JSON.stringify(payload),
+            headers: {'Content-Type': 'application/json'}
+        });
+    } else {
+        await apiRequest('/api/v1/dashboards', {
+            method: 'POST', body: JSON.stringify(payload),
+            headers: {'Content-Type': 'application/json'}
+        });
+    }
+
+    // Seite neu laden um Änderungen zu sehen
+    location.reload();
+}
+
+async function deleteDashboard(id) {
+    if (!confirm('{% if lang == "de" %}Dashboard wirklich löschen?{% else %}Really delete dashboard?{% endif %}')) return;
+    await apiRequest(`/api/v1/dashboards/${id}`, {method: 'DELETE'});
+    // Wenn das aktive Dashboard gelöscht wurde, zum Default wechseln
+    location.href = '/dashboard/default';
+}
+</script>
+{% endblock %}

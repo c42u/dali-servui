@@ -1,0 +1,22 @@
+# =============================================================================
+# DALI ServUI – Python-Abhaengigkeiten
+# Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+# Version: 1.0.0 | Deploy: 2026-05-07
+# =============================================================================
+
+# Web-Framework
+Flask>=3.0,<4.0
+
+# WSGI-Server (Produktion)
+gunicorn>=22.0,<24.0
+
+# --- Hardware-Treiber (optional, je nach DALI-Hardware) ---
+
+# Hasseb USB DALI Master (USB-HID)
+hidapi>=0.14,<1.0
+
+# MikroE DALI Click via Raspberry Pi GPIO
+# gpiod>=2.0,<3.0
+
+# MikroE DALI Click via Click USB Adapter (FTDI FT2232H)
+# pyftdi>=0.55,<1.0

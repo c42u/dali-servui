@@ -1,0 +1,219 @@
+<!-- ========================================================================
+     DALI ServUI – Geräte-Erkennung
+     Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+     Version: 1.0.0 | Deploy: 2026-05-07
+     ======================================================================== -->
+{% extends "base.html" %}
+{% block title %}{{ t.discovery_title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ t.discovery_title }}</h1>
+</div>
+
+<div class="help-warning">
+    {% if lang == 'de' %}
+    <strong>⚠ Hinweis:</strong> Die Aktionen auf dieser Seite verändern den
+    Zustand der DALI-Anlage (Adressen, Werkseinstellungen). Inbetriebnahme
+    und Konfiguration sind durch <strong>fachkundiges, ausgebildetes Personal</strong>
+    (Elektrofachkraft) durchzuführen. Details siehe <a href="{{ url_for('help_page') }}">Hilfe</a>.
+    {% else %}
+    <strong>⚠ Note:</strong> The actions on this page change the state of the
+    DALI installation (addresses, factory defaults). Commissioning and
+    configuration must be performed by <strong>qualified, trained personnel</strong>
+    (a licensed electrician). See <a href="{{ url_for('help_page') }}">Help</a> for details.
+    {% endif %}
+</div>
+
+<!-- Bus-Scan -->
+<div class="section">
+    <h2>{{ t.scan_bus }}</h2>
+    <p>{% if lang == 'de' %}Scannt Adressen 0-63 auf vorhandene DALI-Geräte.{% else %}Scans addresses 0-63 for DALI devices.{% endif %}</p>
+    <button class="btn btn-primary" id="btn-scan" onclick="scanBus()">
+        {{ t.scan_bus }}
+    </button>
+    <div id="scan-status" class="status-message" style="display: none;"></div>
+</div>
+
+<!-- Adress-Reset -->
+<div class="section">
+    <h2>{% if lang == 'de' %}Adressen zurücksetzen{% else %}Reset Addresses{% endif %}</h2>
+    <p>{% if lang == 'de' %}Löscht alle Kurzadressen auf dem Bus. Danach muss eine Neuadressierung durchgeführt werden. Sinnvoll wenn mehrere EVGs auf dieselbe Adresse reagieren.{% else %}Removes all short addresses from the bus. Re-commissioning is required afterwards. Useful when multiple drivers respond to the same address.{% endif %}</p>
+    <div class="btn-group">
+        <button class="btn btn-warning" onclick="resetAddresses()">
+            {% if lang == 'de' %}Alle Adressen löschen{% else %}Delete All Addresses{% endif %}
+        </button>
+        <button class="btn btn-danger" onclick="factoryReset()">
+            {% if lang == 'de' %}Factory Reset (alles zurücksetzen){% else %}Factory Reset (reset everything){% endif %}
+        </button>
+    </div>
+    <div id="reset-status" class="status-message" style="display: none;"></div>
+</div>
+
+<!-- Commissioning -->
+<div class="section">
+    <h2>{{ t.commission_bus }}</h2>
+    {% if active_driver == 'hasseb' %}
+    <div class="commission-hasseb">
+        <p>{% if lang == 'de' %}Löscht alle Kurzadressen, vergibt neue Adressen (0, 1, 2, ...) und führt einen Bus-Scan durch. Der Treiber wird automatisch gestoppt und danach neu gestartet.{% else %}Deletes all short addresses, assigns new ones (0, 1, 2, ...) and runs a bus scan. The driver is automatically stopped and restarted.{% endif %}</p>
+
+        <div id="commission-warning" class="help-warning" style="display:none; margin-bottom:1rem;">
+            <strong>{% if lang == 'de' %}Achtung:{% else %}Warning:{% endif %}</strong>
+            {% if lang == 'de' %}Diese Seite während der Neuadressierung nicht verlassen! Bei einem Seitenwechsel muss der Dienst neu gestartet werden (<code>sudo systemctl restart dali-servui</code>) und die Neuadressierung von vorne begonnen werden.{% else %}Do not leave this page during commissioning! If you navigate away, the service must be restarted (<code>sudo systemctl restart dali-servui</code>) and commissioning must be started again.{% endif %}
+        </div>
+
+        <div class="btn-group" style="margin-bottom:1rem;">
+            <button class="btn btn-warning" id="btn-commission" onclick="startCommissionStream()">
+                {% if lang == 'de' %}Neuadressierung starten{% else %}Start Commissioning{% endif %}
+            </button>
+        </div>
+
+        <div id="commission-output" class="cli-block" style="display:none; max-height:400px; overflow-y:auto; white-space:pre-wrap;"></div>
+    </div>
+    {% else %}
+    <p>{% if lang == 'de' %}Weist allen oder nur neuen Geräten automatisch Kurzadressen zu.{% else %}Automatically assigns short addresses to all or only new devices.{% endif %}</p>
+    <div class="btn-group">
+        <button class="btn btn-warning" onclick="commission(true)">
+            {{ t.commission_broadcast }}
+        </button>
+        <button class="btn btn-primary" onclick="commission(false)">
+            {{ t.commission_new_only }}
+        </button>
+    </div>
+    <div id="commission-status" class="status-message" style="display: none;"></div>
+    {% endif %}
+</div>
+
+<!-- Gefundene Geräte -->
+<div class="section">
+    <h2>{{ t.devices_found }}: {{ devices|length }}</h2>
+    {% if devices %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>{{ t.device_address }}</th>
+                <th>{% if lang == 'de' %}Name{% else %}Name{% endif %}</th>
+                <th>{{ t.device_level }}</th>
+                <th>{{ t.device_type }}</th>
+                <th>{{ t.device_groups }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for addr, dev in devices.items() %}
+            <tr>
+                <td>{{ addr }}</td>
+                <td>{{ labels.devices.get(addr|string, '') or '-' }}</td>
+                <td>{{ dev.level }}</td>
+                <td>{{ dev.device_type }}</td>
+                <td>{{ dev.groups|join(', ') if dev.groups else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function resetAddresses() {
+    const statusEl = document.getElementById('reset-status');
+    if (!confirm('{% if lang == "de" %}Alle Kurzadressen werden gelöscht! Fortfahren?{% else %}All short addresses will be deleted! Continue?{% endif %}')) {
+        return;
+    }
+    statusEl.style.display = 'block';
+    statusEl.className = 'status-message info';
+    statusEl.textContent = '{% if lang == "de" %}Adressen werden gelöscht...{% else %}Deleting addresses...{% endif %}';
+
+    const result = await apiPost('/api/v1/reset-addresses');
+    statusEl.className = 'status-message success';
+    statusEl.textContent = '{% if lang == "de" %}Alle Adressen gelöscht. Bitte jetzt Neuadressierung starten.{% else %}All addresses deleted. Please start re-commissioning now.{% endif %}';
+    setTimeout(() => location.reload(), 3000);
+}
+
+async function factoryReset() {
+    const statusEl = document.getElementById('reset-status');
+    if (!confirm('{% if lang == "de" %}ACHTUNG: Setzt ALLE Geräte auf Werkseinstellungen zurück (Adressen, Gruppen, Szenen)! Fortfahren?{% else %}WARNING: Resets ALL devices to factory defaults (addresses, groups, scenes)! Continue?{% endif %}')) {
+        return;
+    }
+    statusEl.style.display = 'block';
+    statusEl.className = 'status-message info';
+    statusEl.textContent = '{% if lang == "de" %}Factory Reset läuft...{% else %}Factory reset in progress...{% endif %}';
+
+    const result = await apiPost('/api/v1/factory-reset');
+    statusEl.className = 'status-message success';
+    statusEl.textContent = '{% if lang == "de" %}Factory Reset abgeschlossen. Bitte jetzt Neuadressierung starten.{% else %}Factory reset complete. Please start re-commissioning now.{% endif %}';
+    setTimeout(() => location.reload(), 3000);
+}
+
+// Seitenverlassen verhindern während Commissioning läuft
+let _commissioningActive = false;
+window.addEventListener('beforeunload', function(e) {
+    if (_commissioningActive) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// Navigation über Navbar-Links abfangen
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+        if (_commissioningActive) {
+            const msg = '{% if lang == "de" %}Neuadressierung läuft! Bei Seitenwechsel muss der Dienst neu gestartet werden. Wirklich verlassen?{% else %}Commissioning in progress! If you leave, the service must be restarted. Really leave?{% endif %}';
+            if (!confirm(msg)) {
+                e.preventDefault();
+            }
+        }
+    });
+});
+
+function startCommissionStream() {
+    const btn = document.getElementById('btn-commission');
+    const output = document.getElementById('commission-output');
+    const warning = document.getElementById('commission-warning');
+
+    if (!confirm('{% if lang == "de" %}Alle Kurzadressen werden gelöscht und neu vergeben. Während der Neuadressierung darf die Seite nicht verlassen werden! Fortfahren?{% else %}All short addresses will be deleted and reassigned. Do not leave this page during commissioning! Continue?{% endif %}')) {
+        return;
+    }
+
+    _commissioningActive = true;
+    btn.disabled = true;
+    btn.textContent = '{% if lang == "de" %}Läuft...{% else %}Running...{% endif %}';
+    warning.style.display = 'block';
+    output.style.display = 'block';
+    output.textContent = '';
+    _showActivity();
+
+    // EventSource kann keine Custom-Header senden – Token als Query-Param,
+    // wenn API_TOKEN gesetzt ist (sonst leer)
+    const _ssePath = '/api/v1/drivers/commission-stream'
+        + (window.API_TOKEN ? '?token=' + encodeURIComponent(window.API_TOKEN) : '');
+    const source = new EventSource(_ssePath);
+    source.onmessage = function(event) {
+        const line = event.data;
+        if (line === '[DONE]') {
+            source.close();
+            _commissioningActive = false;
+            _hideActivity();
+            warning.style.display = 'none';
+            btn.disabled = false;
+            btn.textContent = '{% if lang == "de" %}Neuadressierung starten{% else %}Start Commissioning{% endif %}';
+            output.textContent += '\n--- Abgeschlossen. Seite wird neu geladen... ---';
+            setTimeout(() => location.reload(), 3000);
+            return;
+        }
+        output.textContent += line + '\n';
+        output.scrollTop = output.scrollHeight;
+    };
+    source.onerror = function() {
+        source.close();
+        _commissioningActive = false;
+        _hideActivity();
+        warning.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '{% if lang == "de" %}Neuadressierung starten{% else %}Start Commissioning{% endif %}';
+        output.textContent += '\n--- Verbindung unterbrochen ---';
+    };
+}
+</script>
+{% endblock %}

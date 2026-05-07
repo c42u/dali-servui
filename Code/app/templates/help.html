@@ -1,0 +1,720 @@
+<!-- ========================================================================
+     DALI ServUI – Hilfe-Seite
+     Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+     Version: 1.0.0 | Deploy: 2026-05-07
+     ======================================================================== -->
+{% extends "base.html" %}
+{% block title %}{{ t.help_title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ t.help_title }}</h1>
+</div>
+
+{% if lang == 'de' %}
+<!-- ===== DEUTSCHE HILFE ===== -->
+
+<div class="safety-notice">
+    <p><strong>⚠ Sicherheitshinweis und Haftungsausschluss</strong></p>
+    <p>
+        Die Nutzung von DALI ServUI erfolgt auf <strong>eigene Gefahr</strong>.
+        Der Autor übernimmt keine Haftung für Personen-, Sach- oder Vermögensschäden,
+        die durch den Einsatz dieser Software entstehen.
+    </p>
+    <p>
+        DALI ServUI steuert elektrische Beleuchtungsanlagen. Die Installation,
+        Verkabelung und Inbetriebnahme des DALI-Bus-Systems – insbesondere alle
+        Arbeiten an der Netzspannungsseite der Vorschaltgeräte – sind ausschließlich
+        durch <strong>fachkundiges, ausgebildetes Personal</strong> (Elektrofachkraft)
+        durchzuführen. Die jeweils geltenden nationalen Vorschriften
+        (z. B. DIN VDE 0100, ÖVE/ÖNORM E 8001, NIN) sind zu beachten.
+    </p>
+</div>
+
+<div class="help-toc section">
+    <h2>Inhalt</h2>
+    <ol>
+        <li><a href="#ueberblick">Überblick</a></li>
+        <li><a href="#hardware">Unterstützte Hardware</a></li>
+        <li><a href="#installation">Installation</a></li>
+        <li><a href="#dashboard">Dashboard</a></li>
+        <li><a href="#geraete">Geräte</a></li>
+        <li><a href="#gruppen">Gruppen</a></li>
+        <li><a href="#erkennung">Geräte-Erkennung</a></li>
+        <li><a href="#einstellungen">Einstellungen & Treiber</a></li>
+        <li><a href="#api">REST-API</a></li>
+        <li><a href="#integration">Externe Integration (Home Assistant)</a></li>
+        <li><a href="#fehler">Fehlerbehebung</a></li>
+    </ol>
+</div>
+
+<div class="section" id="ueberblick">
+    <h2>1. Überblick</h2>
+    <p>
+        <strong>DALI ServUI</strong> ist eine Web-Anwendung zur Steuerung von DALI-Beleuchtungssystemen
+        (Digital Addressable Lighting Interface). Die Anwendung kommuniziert über verschiedene
+        Hardware-Adapter mit dem DALI-Bus und bietet eine intuitive Oberfläche für:
+    </p>
+    <ul>
+        <li>Einzel- und Gruppensteuerung von DALI-Leuchten</li>
+        <li>Helligkeitsregelung (0–254)</li>
+        <li>Automatische Geräte-Erkennung (Bus-Scan)</li>
+        <li>Adresszuweisung (Commissioning)</li>
+        <li>Bus-Monitoring</li>
+    </ul>
+    <p>
+        Die Anwendung kann als <strong>Docker-Container</strong> oder direkt auf einem
+        <strong>Linux-System</strong> (z.B. Raspberry Pi) betrieben werden.
+    </p>
+</div>
+
+<div class="section" id="hardware">
+    <h2>2. Unterstützte Hardware</h2>
+    <p>DALI ServUI unterstützt drei verschiedene Hardware-Adapter:</p>
+
+    <div class="help-table-wrap">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Treiber</th>
+                <th>Hardware</th>
+                <th>Anschluss</th>
+                <th>Geeignet für</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Hasseb USB DALI Master</strong></td>
+                <td>Hasseb DALI USB (VID 0x04CC)</td>
+                <td>USB-HID</td>
+                <td>Jeder PC / Server mit USB</td>
+            </tr>
+            <tr>
+                <td><strong>MikroE DALI Click (GPIO)</strong></td>
+                <td>DALI Click oder DALI 2 Click + Pi Click Shield</td>
+                <td>GPIO (BCM 14/15)</td>
+                <td>Raspberry Pi</td>
+            </tr>
+            <tr>
+                <td><strong>MikroE DALI Click (USB)</strong></td>
+                <td>DALI Click oder DALI 2 Click + Click USB Adapter</td>
+                <td>USB (FTDI FT2232H)</td>
+                <td>Jeder PC / Server mit USB</td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h3>DALI Click vs. DALI 2 Click</h3>
+    <p>
+        Die beiden MikroElektronika-Boards haben eine <strong>invertierte TX-Logik</strong>.
+        Beim <strong>DALI 2 Click</strong> muss in den Einstellungen die Option
+        <em>„TX invertiert"</em> aktiviert werden. Beim <strong>DALI Click</strong> bleibt sie deaktiviert.
+    </p>
+
+    <h3>Bus-Stromversorgung</h3>
+    <p>
+        Der Hasseb USB DALI Master hat eine <strong>integrierte Bus-Stromversorgung</strong> (250mA).
+        Bei den MikroE-Boards wird eine <strong>externe DALI-Bus-Stromversorgung</strong> benötigt.
+    </p>
+</div>
+
+<div class="section" id="installation">
+    <h2>3. Installation</h2>
+
+    <h3>Option A: Docker</h3>
+    <pre><code>cd Docker/
+docker compose up -d</code></pre>
+    <p>
+        Bei USB-Hardware muss der Container Zugriff auf das USB-Gerät haben.
+        In der <code>docker-compose.yml</code> ist dafür <code>privileged: true</code> voreingestellt.
+    </p>
+
+    <h3>Option B: Direkte Linux-Installation</h3>
+    <pre><code>sudo ./Code/install.sh install</code></pre>
+    <p>
+        Das Skript installiert alle Abhängigkeiten, richtet einen systemd-Service ein
+        und erstellt eine udev-Regel für den USB-Zugriff.
+    </p>
+    <ul>
+        <li>Service starten: <code>sudo systemctl start dali-servui</code></li>
+        <li>Logs anzeigen: <code>sudo journalctl -u dali-servui -f</code></li>
+        <li>Web-UI öffnen: <code>http://&lt;IP&gt;:5000</code></li>
+    </ul>
+
+    <h3>Umgebungsvariablen</h3>
+    <div class="help-table-wrap">
+    <table class="data-table">
+        <thead><tr><th>Variable</th><th>Beschreibung</th><th>Standard</th></tr></thead>
+        <tbody>
+            <tr><td><code>DALI_DRIVER</code></td><td>Treiber: hasseb, mikroe_gpio, mikroe_ftdi, dryrun</td><td>(gespeicherte Konfig)</td></tr>
+            <tr><td><code>DALI_HOST</code></td><td>Bind-Adresse</td><td>0.0.0.0</td></tr>
+            <tr><td><code>DALI_PORT</code></td><td>Port</td><td>5000</td></tr>
+            <tr><td><code>DALI_LANG</code></td><td>Sprache (de/en)</td><td>de</td></tr>
+            <tr><td><code>DALI_API_TOKEN</code></td><td>API-Authentifizierung (leer = deaktiviert)</td><td></td></tr>
+            <tr><td><code>DALI_LOG_LEVEL</code></td><td>Log-Level</td><td>INFO</td></tr>
+            <tr><td><code>DALI_DATA_DIR</code></td><td>Datenverzeichnis</td><td>Code/data</td></tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="section" id="dashboard">
+    <h2>4. Dashboard</h2>
+    <p>
+        Das Dashboard zeigt eine Übersicht über den aktuellen Status:
+    </p>
+    <ul>
+        <li><strong>Verbindungsstatus</strong> – ob ein DALI-Adapter erkannt wurde</li>
+        <li><strong>Firmware-Version</strong> – des angeschlossenen Adapters</li>
+        <li><strong>Geräteanzahl</strong> – nach dem letzten Bus-Scan</li>
+        <li><strong>Warteschlange</strong> – Anzahl ausstehender Befehle</li>
+    </ul>
+    <p>
+        Im unteren Bereich können Sie per <strong>Broadcast</strong> alle Leuchten
+        gleichzeitig ein-/ausschalten oder die Helligkeit regeln.
+        Darunter werden die einzelnen Geräte mit Schnellsteuerung angezeigt.
+    </p>
+
+    <h3>Aktivitäts-Indikator</h3>
+    <p>
+        In der Navigationsleiste erscheint ein <strong>rotierendes Symbol</strong>,
+        sobald eine Aktion läuft (z.B. API-Abfrage, Commissioning, Bus-Scan).
+        Der Indikator bleibt sichtbar, bis alle laufenden Aktionen abgeschlossen sind.
+    </p>
+</div>
+
+<div class="section" id="geraete">
+    <h2>5. Geräte</h2>
+    <p>
+        Die Geräte-Seite zeigt eine Tabelle aller erkannten DALI-Geräte mit:
+    </p>
+    <ul>
+        <li><strong>Adresse</strong> – Kurzadresse 0–63</li>
+        <li><strong>Helligkeit</strong> – aktueller Wert mit Slider (0–254)</li>
+        <li><strong>Typ</strong> – DALI-Gerätetyp</li>
+        <li><strong>Gruppen</strong> – Zugehörigkeit zu Gruppen 0–15</li>
+        <li><strong>Status</strong> – ob das Gerät erreichbar ist</li>
+    </ul>
+    <p>
+        Über die Buttons <em>Ein</em> / <em>Aus</em> und den Helligkeitsregler
+        steuern Sie jedes Gerät einzeln.
+    </p>
+    <p>
+        Klicken Sie auf <em>Bus scannen</em>, um den Bus nach neuen Geräten zu durchsuchen.
+        Der Scan dauert etwa 10–20 Sekunden.
+    </p>
+</div>
+
+<div class="section" id="gruppen">
+    <h2>6. Gruppen</h2>
+    <p>
+        DALI-Geräte können bis zu 16 Gruppen (0–15) zugeordnet sein.
+        Auf der Gruppen-Seite sehen Sie alle Gruppen mit ihren Mitgliedern
+        und können jede Gruppe gemeinsam steuern.
+    </p>
+    <p>
+        Die Gruppenzugehörigkeit wird automatisch vom Bus ausgelesen.
+        Eine Änderung der Gruppenzuordnung über die Web-UI ist in einer
+        zukünftigen Version geplant.
+    </p>
+</div>
+
+<div class="section" id="erkennung">
+    <h2>7. Geräte-Erkennung</h2>
+
+    <h3>Bus-Scan</h3>
+    <p>
+        Der Bus-Scan prüft alle 64 möglichen Kurzadressen (0–63) und ermittelt
+        für jedes gefundene Gerät: aktuelle Helligkeit, Gerätetyp und Gruppenzugehörigkeit.
+    </p>
+
+    <h3>Commissioning (Adresszuweisung)</h3>
+    <p>
+        Bei neuen oder nicht adressierten Geräten auf dem Bus können Sie das
+        Commissioning starten. Dabei werden den Geräten automatisch Kurzadressen (0, 1, 2, ...) zugewiesen.
+    </p>
+    <ul>
+        <li><strong>Neuadressierung starten</strong> – Löscht alle bestehenden Kurzadressen,
+            führt ein vollständiges Commissioning durch und zeigt den Fortschritt live an.
+            Der Treiber wird automatisch gestoppt, danach neu gestartet und ein Bus-Scan
+            ausgeführt, sodass die gefundenen Geräte sofort in der UI sichtbar sind.</li>
+        <li><strong>Alle Adressen löschen</strong> – Entfernt nur die Kurzadressen,
+            ohne neue zu vergeben</li>
+        <li><strong>Factory Reset</strong> – Setzt alle Geräte auf Werkseinstellungen zurück
+            (Adressen, Gruppen, Szenen – alles weg)</li>
+    </ul>
+    <p class="help-warning">
+        <strong>Wichtig:</strong> Während einer laufenden Neuadressierung darf die Seite
+        nicht verlassen werden! Bei einem Seitenwechsel muss der Dienst neu gestartet
+        werden (<code>sudo systemctl restart dali-servui</code>) und die Neuadressierung
+        von vorne begonnen werden. Die Anwendung warnt vor einem versehentlichen Verlassen.
+    </p>
+    <p class="help-warning">
+        <strong>Achtung:</strong> Die Neuadressierung ändert die Kurzadressen aller
+        Geräte auf dem Bus. Dies kann bestehende Zuordnungen in anderen Systemen
+        (z.B. Home Assistant) ungültig machen.
+    </p>
+    <p>
+        <strong>CLI-Alternative:</strong> Das Commissioning kann auch über die Kommandozeile
+        ausgeführt werden:<br>
+        <code>sudo /opt/dali-servui/venv/bin/python3 /opt/dali-servui/dali_commission.py</code>
+    </p>
+</div>
+
+<div class="section" id="einstellungen">
+    <h2>8. Einstellungen & Treiber</h2>
+    <p>
+        Auf der Einstellungen-Seite wählen Sie den passenden Hardware-Treiber
+        für Ihren DALI-Adapter:
+    </p>
+    <ol>
+        <li>Klicken Sie auf die Karte des gewünschten Treibers</li>
+        <li>Passen Sie ggf. die Konfigurationsfelder an (GPIO-Pins, FTDI-URL, TX-Invertierung)</li>
+        <li>Klicken Sie auf <em>Aktivieren</em></li>
+    </ol>
+    <p>
+        Der Treiber wird sofort gewechselt und die Konfiguration dauerhaft gespeichert.
+        Beim nächsten Start wird der zuletzt gewählte Treiber automatisch geladen.
+    </p>
+
+    <h3>Treiber-spezifische Einstellungen</h3>
+    <ul>
+        <li><strong>MikroE GPIO:</strong> TX-Pin (Standard: 14), RX-Pin (Standard: 15),
+            GPIO-Chip (/dev/gpiochip0), TX invertiert (für DALI 2 Click)</li>
+        <li><strong>MikroE FTDI:</strong> FTDI Device-URL (Standard: ftdi://ftdi:2232h/1),
+            TX-Pin (Standard: 4), RX-Pin (Standard: 7), TX invertiert (für DALI 2 Click)</li>
+        <li><strong>Hasseb:</strong> Keine Konfiguration nötig (Plug & Play)</li>
+        <li><strong>Testmodus:</strong> Keine Hardware nötig – simuliert alle Antworten</li>
+    </ul>
+
+    <h3>DALI Device Types (DT6/DT8)</h3>
+    <p>
+        Unter den Treiber-Einstellungen können Sie zusätzliche Device-Type-Features aktivieren:
+    </p>
+    <ul>
+        <li><strong>DT6 – LED Gear:</strong> LED-spezifische Funktionen wie Betriebsmodus
+            und Thermal-Status-Abfrage. Relevant für LED-Treiber nach IEC 62386-207.</li>
+        <li><strong>DT8 – Tunable White:</strong> Farbtemperatur-Steuerung (2700K warm bis
+            6500K kalt). Zeigt einen Farbtemperatur-Slider bei kompatiblen Leuchten an.</li>
+        <li><strong>DT8 – RGB:</strong> RGB-Farbsteuerung für mehrfarbige Leuchten.
+            Zeigt einen Colour-Picker bei kompatiblen Leuchten an.</li>
+    </ul>
+    <p>
+        Die DT8-Features werden beim Bus-Scan automatisch erkannt. Die Steuerelemente
+        erscheinen nur bei Geräten, die das jeweilige Feature tatsächlich unterstützen.
+    </p>
+    <p>
+        <strong>Farbtemperatur</strong> wird intern in Mirek (Micro Reciprocal Kelvin) angegeben:<br>
+        Mirek = 1.000.000 / Kelvin. Beispiele: 370 Mirek = 2700K (warm), 250 Mirek = 4000K (neutral),
+        153 Mirek = 6500K (kalt).
+    </p>
+</div>
+
+<div class="section" id="api">
+    <h2>9. REST-API</h2>
+    <p>
+        DALI ServUI bietet eine vollständige REST-API unter <code>/api/v1/</code>.
+        Wenn ein API-Token konfiguriert ist (<code>DALI_API_TOKEN</code>),
+        muss der Header <code>X-API-Token</code> bei jedem Request mitgesendet werden.
+    </p>
+
+    <h3>Endpunkte</h3>
+    <div class="help-table-wrap">
+    <table class="data-table">
+        <thead><tr><th>Methode</th><th>Pfad</th><th>Beschreibung</th></tr></thead>
+        <tbody>
+            <tr><td>GET</td><td><code>/api/v1/status</code></td><td>Service-Status</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/events</code></td><td>SSE-Stream (Echtzeit-Events)</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/devices</code></td><td>Alle Geräte auflisten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/devices/{addr}/on</code></td><td>Gerät einschalten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/devices/{addr}/off</code></td><td>Gerät ausschalten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/devices/{addr}/level</code></td><td>Helligkeit setzen <code>{"level": 0..254}</code></td></tr>
+            <tr><td>POST</td><td><code>/api/v1/broadcast/on</code></td><td>Alle einschalten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/broadcast/off</code></td><td>Alle ausschalten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/broadcast/level</code></td><td>Alle Helligkeit <code>{"level": 0..254}</code></td></tr>
+            <tr><td>POST</td><td><code>/api/v1/groups/{g}/on</code></td><td>Gruppe einschalten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/groups/{g}/off</code></td><td>Gruppe ausschalten</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/groups</code></td><td>Alle Gruppen mit Mitgliedern</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/groups/{g}/level</code></td><td>Gruppen-Helligkeit</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/scan</code></td><td>Bus-Scan starten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/commission</code></td><td>Commissioning <code>{"broadcast": true}</code></td></tr>
+            <tr><td>GET</td><td><code>/api/v1/drivers/commission-stream</code></td><td>Commissioning mit Live-Output (SSE)</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/drivers/commission-status</code></td><td>Commissioning-Status + Log</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/reset-addresses</code></td><td>Alle Kurzadressen löschen</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/factory-reset</code></td><td>Factory Reset (Broadcast)</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/sniff</code></td><td>Bus-Sniffer <code>{"duration": 10}</code></td></tr>
+            <tr><td>POST</td><td><code>/api/v1/drivers/stop</code></td><td>Treiber stoppen</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/drivers/start</code></td><td>Treiber starten</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/devices/{addr}/colour-temp</code></td><td>Farbtemperatur <code>{"mirek":250}</code> oder <code>{"kelvin":4000}</code></td></tr>
+            <tr><td>POST</td><td><code>/api/v1/devices/{addr}/rgb</code></td><td>RGB-Farbe <code>{"r":254,"g":0,"b":0}</code></td></tr>
+            <tr><td>POST</td><td><code>/api/v1/broadcast/colour-temp</code></td><td>Broadcast Farbtemperatur</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/broadcast/rgb</code></td><td>Broadcast RGB</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/features</code></td><td>Feature-Flags (DT6/DT8)</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/features</code></td><td>Features setzen <code>{"dt8_tc":true,"dt8_rgb":true}</code></td></tr>
+            <tr><td>POST</td><td><code>/api/v1/raw</code></td><td>Roher DALI-Befehl <code>{"address":0,"command":0,"expect_reply":false}</code></td></tr>
+            <tr><td>GET</td><td><code>/api/v1/drivers</code></td><td>Verfügbare Treiber</td></tr>
+            <tr><td>POST</td><td><code>/api/v1/drivers/switch</code></td><td>Treiber wechseln <code>{"driver_id":"hasseb"}</code></td></tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h3>Beispiel (curl)</h3>
+    <pre><code># Alle Leuchten einschalten
+curl -X POST http://localhost:5000/api/v1/broadcast/on
+
+# Gerät 3 auf 50% Helligkeit
+curl -X POST http://localhost:5000/api/v1/devices/3/level \
+  -H "Content-Type: application/json" \
+  -d '{"level": 127}'
+
+# Bus scannen
+curl -X POST http://localhost:5000/api/v1/scan</code></pre>
+</div>
+
+<div class="section" id="integration">
+    <h2>10. Externe Integration (Home Assistant)</h2>
+    <p>
+        DALI ServUI bietet eine CORS-fähige REST-API und einen SSE-Event-Stream,
+        die eine Integration mit externen Systemen wie <strong>Home Assistant</strong> ermöglichen.
+    </p>
+
+    <h3>CORS</h3>
+    <p>
+        Alle <code>/api/</code>-Endpunkte senden CORS-Header
+        (<code>Access-Control-Allow-Origin: *</code>).
+        Externe Clients können ohne Proxy direkt auf die API zugreifen.
+    </p>
+
+    <h3>Gruppen-API</h3>
+    <p>
+        <code>GET /api/v1/groups</code> liefert alle Gruppen mit Name, Mitgliedern und Level:
+    </p>
+    <pre><code>{
+  "0": {
+    "id": 0,
+    "name": "Wohnzimmer",
+    "members": [
+      {"address": 0, "name": "Decke", "level": 254, "present": true},
+      {"address": 1, "name": "Wand", "level": 127, "present": true}
+    ]
+  }
+}</code></pre>
+
+    <h3>Echtzeit-Events (SSE)</h3>
+    <p>
+        <code>GET /api/v1/events</code> öffnet einen Server-Sent Events Stream.
+        Jedes Event ist ein JSON-Objekt mit einem <code>event</code>-Feld:
+    </p>
+    <pre><code># Events: level, on, off, group_on, group_off, group_level,
+#          scan_complete, colour_temp, rgb
+data: {"event": "level", "address": 3, "level": 200}
+data: {"event": "on", "address": 3}
+data: {"event": "group_level", "group": 0, "level": 127}
+data: {"event": "scan_complete", "count": 5}</code></pre>
+    <p>
+        Beispiel mit curl:
+        <code>curl -N http://&lt;IP&gt;:5000/api/v1/events</code>
+    </p>
+</div>
+
+<div class="section" id="fehler">
+    <h2>11. Fehlerbehebung</h2>
+
+    <h3>Kein Gerät gefunden</h3>
+    <ul>
+        <li>Prüfen Sie ob der USB-Adapter angeschlossen und erkannt ist: <code>lsusb</code></li>
+        <li>Hasseb: Suchen Sie nach <code>04cc:0802</code> in der Ausgabe</li>
+        <li>FTDI: Suchen Sie nach <code>0403:6010</code> (FT2232H)</li>
+        <li>Prüfen Sie die udev-Regel: <code>ls -la /dev/hidraw*</code></li>
+        <li>Der Benutzer muss Mitglied der Gruppe <code>dali</code> sein</li>
+    </ul>
+
+    <h3>Bus-Scan findet keine Geräte</h3>
+    <ul>
+        <li>Prüfen Sie ob die DALI-Bus-Spannung anliegt (typ. 16V)</li>
+        <li>Prüfen Sie die Verkabelung (DALI+ und DALI- sind verpolungssicher)</li>
+        <li>Starten Sie ein Commissioning, falls die Geräte keine Kurzadressen haben</li>
+    </ul>
+
+    <h3>MikroE GPIO: Keine Kommunikation</h3>
+    <ul>
+        <li>Prüfen Sie ob die GPIO-Pins korrekt konfiguriert sind (Standard: TX=14, RX=15)</li>
+        <li>Bei DALI 2 Click: <em>TX invertiert</em> aktivieren</li>
+        <li>Prüfen Sie ob <code>gpiod</code> installiert ist: <code>pip install gpiod</code></li>
+        <li>Prüfen Sie den GPIO-Chip: <code>gpioinfo /dev/gpiochip0</code></li>
+    </ul>
+
+    <h3>MikroE FTDI: Verbindung schlägt fehl</h3>
+    <ul>
+        <li>Prüfen Sie die FTDI-URL: Standard ist <code>ftdi://ftdi:2232h/1</code></li>
+        <li>Prüfen Sie ob <code>pyftdi</code> installiert ist: <code>pip install pyftdi</code></li>
+        <li>Der Kernel-Treiber muss ggf. entladen werden: <code>sudo rmmod ftdi_sio usbserial</code></li>
+        <li>Alternativ: udev-Regel für automatisches Unbind anlegen</li>
+    </ul>
+
+    <h3>Testmodus (Dryrun)</h3>
+    <p>
+        Im Testmodus werden alle Befehle simuliert. Dies ist nützlich zum Testen der
+        Web-Oberfläche ohne angeschlossene Hardware. Alle Queries werden mit <code>0xFF</code> beantwortet.
+    </p>
+</div>
+
+{% else %}
+<!-- ===== ENGLISH HELP ===== -->
+
+<div class="safety-notice">
+    <p><strong>⚠ Safety notice and disclaimer</strong></p>
+    <p>
+        Use of DALI ServUI is <strong>at your own risk</strong>. The author
+        accepts no liability for personal injury, property damage or financial
+        loss resulting from the use of this software.
+    </p>
+    <p>
+        DALI ServUI controls electrical lighting installations. The installation,
+        wiring and commissioning of the DALI bus system – in particular any work
+        on the mains-voltage side of the control gear – must only be carried out
+        by <strong>qualified, trained personnel</strong> (a licensed electrician).
+        Applicable national regulations (e. g. IEC 60364, BS 7671, NEC) must be
+        observed.
+    </p>
+</div>
+
+<div class="help-toc section">
+    <h2>Contents</h2>
+    <ol>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#hardware-en">Supported Hardware</a></li>
+        <li><a href="#installation-en">Installation</a></li>
+        <li><a href="#dashboard-en">Dashboard</a></li>
+        <li><a href="#devices-en">Devices</a></li>
+        <li><a href="#groups-en">Groups</a></li>
+        <li><a href="#discovery-en">Device Discovery</a></li>
+        <li><a href="#settings-en">Settings & Drivers</a></li>
+        <li><a href="#api-en">REST API</a></li>
+        <li><a href="#integration-en">External Integration (Home Assistant)</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+</div>
+
+<div class="section" id="overview">
+    <h2>1. Overview</h2>
+    <p>
+        <strong>DALI ServUI</strong> is a web application for controlling DALI lighting systems
+        (Digital Addressable Lighting Interface). It communicates with the DALI bus through
+        various hardware adapters and provides an intuitive interface for:
+    </p>
+    <ul>
+        <li>Individual and group control of DALI luminaires</li>
+        <li>Brightness control (0–254)</li>
+        <li>Automatic device discovery (bus scan)</li>
+        <li>Address assignment (commissioning)</li>
+        <li>Bus monitoring</li>
+    </ul>
+    <p>
+        The application can run as a <strong>Docker container</strong> or directly on a
+        <strong>Linux system</strong> (e.g. Raspberry Pi).
+    </p>
+</div>
+
+<div class="section" id="hardware-en">
+    <h2>2. Supported Hardware</h2>
+    <p>DALI ServUI supports three different hardware adapters:</p>
+
+    <div class="help-table-wrap">
+    <table class="data-table">
+        <thead>
+            <tr><th>Driver</th><th>Hardware</th><th>Connection</th><th>Suitable for</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Hasseb USB DALI Master</strong></td>
+                <td>Hasseb DALI USB (VID 0x04CC)</td>
+                <td>USB-HID</td>
+                <td>Any PC / server with USB</td>
+            </tr>
+            <tr>
+                <td><strong>MikroE DALI Click (GPIO)</strong></td>
+                <td>DALI Click or DALI 2 Click + Pi Click Shield</td>
+                <td>GPIO (BCM 14/15)</td>
+                <td>Raspberry Pi</td>
+            </tr>
+            <tr>
+                <td><strong>MikroE DALI Click (USB)</strong></td>
+                <td>DALI Click or DALI 2 Click + Click USB Adapter</td>
+                <td>USB (FTDI FT2232H)</td>
+                <td>Any PC / server with USB</td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <h3>DALI Click vs. DALI 2 Click</h3>
+    <p>
+        The two MikroElektronika boards have <strong>inverted TX logic</strong>.
+        For the <strong>DALI 2 Click</strong>, enable the <em>"TX inverted"</em> option
+        in Settings. For the <strong>DALI Click</strong>, leave it disabled.
+    </p>
+
+    <h3>Bus Power Supply</h3>
+    <p>
+        The Hasseb USB DALI Master has an <strong>integrated bus power supply</strong> (250mA).
+        MikroE boards require an <strong>external DALI bus power supply</strong>.
+    </p>
+</div>
+
+<div class="section" id="installation-en">
+    <h2>3. Installation</h2>
+
+    <h3>Option A: Docker</h3>
+    <pre><code>cd Docker/
+docker compose up -d</code></pre>
+
+    <h3>Option B: Direct Linux Installation</h3>
+    <pre><code>sudo ./Code/install.sh install</code></pre>
+    <ul>
+        <li>Start service: <code>sudo systemctl start dali-servui</code></li>
+        <li>View logs: <code>sudo journalctl -u dali-servui -f</code></li>
+        <li>Open Web UI: <code>http://&lt;IP&gt;:5000</code></li>
+    </ul>
+
+    <h3>Environment Variables</h3>
+    <div class="help-table-wrap">
+    <table class="data-table">
+        <thead><tr><th>Variable</th><th>Description</th><th>Default</th></tr></thead>
+        <tbody>
+            <tr><td><code>DALI_DRIVER</code></td><td>Driver: hasseb, mikroe_gpio, mikroe_ftdi, dryrun</td><td>(saved config)</td></tr>
+            <tr><td><code>DALI_HOST</code></td><td>Bind address</td><td>0.0.0.0</td></tr>
+            <tr><td><code>DALI_PORT</code></td><td>Port</td><td>5000</td></tr>
+            <tr><td><code>DALI_LANG</code></td><td>Language (de/en)</td><td>de</td></tr>
+            <tr><td><code>DALI_API_TOKEN</code></td><td>API authentication (empty = disabled)</td><td></td></tr>
+            <tr><td><code>DALI_LOG_LEVEL</code></td><td>Log level</td><td>INFO</td></tr>
+            <tr><td><code>DALI_DATA_DIR</code></td><td>Data directory</td><td>Code/data</td></tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="section" id="dashboard-en">
+    <h2>4. Dashboard</h2>
+    <p>The dashboard shows the current status: connection state, firmware version,
+       device count, and command queue size. Use the broadcast controls to switch
+       all lights on/off or adjust brightness for all devices at once.</p>
+    <h3>Activity Indicator</h3>
+    <p>A <strong>spinning icon</strong> appears in the navigation bar whenever an action
+       is in progress (e.g. API request, commissioning, bus scan). It remains visible
+       until all running actions are complete.</p>
+</div>
+
+<div class="section" id="devices-en">
+    <h2>5. Devices</h2>
+    <p>The devices page lists all discovered DALI devices with address, brightness level,
+       device type, group membership, and status. Use the sliders and buttons to control
+       each device individually. Click <em>Scan bus</em> to discover devices.</p>
+</div>
+
+<div class="section" id="groups-en">
+    <h2>6. Groups</h2>
+    <p>DALI devices can belong to up to 16 groups (0–15). The groups page shows all
+       groups with their members and allows you to control each group collectively.</p>
+</div>
+
+<div class="section" id="discovery-en">
+    <h2>7. Device Discovery</h2>
+    <h3>Bus Scan</h3>
+    <p>Checks all 64 possible short addresses and reads device information.</p>
+    <h3>Commissioning</h3>
+    <ul>
+        <li><strong>Re-address all</strong> – Resets and reassigns all addresses (broadcast mode).
+            The driver is stopped, commissioning runs with live output, then the driver
+            restarts and a bus scan is performed so devices appear immediately.</li>
+        <li><strong>New devices only</strong> – Only addresses devices without a short address</li>
+    </ul>
+    <p class="help-warning">
+        <strong>Important:</strong> Do not leave this page during commissioning! If you
+        navigate away, the service must be restarted
+        (<code>sudo systemctl restart dali-servui</code>) and commissioning must be
+        started again. The application will warn you before leaving.
+    </p>
+    <p class="help-warning">
+        <strong>Warning:</strong> "Re-address all" will change the short addresses of all
+        devices on the bus, potentially breaking existing configurations.
+    </p>
+</div>
+
+<div class="section" id="settings-en">
+    <h2>8. Settings & Drivers</h2>
+    <p>Select the appropriate hardware driver on the Settings page:</p>
+    <ol>
+        <li>Click on the desired driver card</li>
+        <li>Adjust configuration fields if needed (GPIO pins, FTDI URL, TX inversion)</li>
+        <li>Click <em>Activate</em></li>
+    </ol>
+    <p>The driver switches immediately and the configuration is saved permanently.</p>
+</div>
+
+<div class="section" id="api-en">
+    <h2>9. REST API</h2>
+    <p>Full REST API available at <code>/api/v1/</code>. If an API token is configured,
+       include the <code>X-API-Token</code> header with each request.</p>
+
+    <h3>Example (curl)</h3>
+    <pre><code># Turn all lights on
+curl -X POST http://localhost:5000/api/v1/broadcast/on
+
+# Set device 3 to 50% brightness
+curl -X POST http://localhost:5000/api/v1/devices/3/level \
+  -H "Content-Type: application/json" \
+  -d '{"level": 127}'</code></pre>
+</div>
+
+<div class="section" id="integration-en">
+    <h2>10. External Integration (Home Assistant)</h2>
+    <p>DALI ServUI provides a CORS-enabled REST API and an SSE event stream
+       for integration with external systems like <strong>Home Assistant</strong>.</p>
+
+    <h3>CORS</h3>
+    <p>All <code>/api/</code> endpoints send CORS headers.
+       External clients can access the API directly without a proxy.</p>
+
+    <h3>Groups API</h3>
+    <p><code>GET /api/v1/groups</code> returns all groups with name, members and level.</p>
+
+    <h3>Real-time Events (SSE)</h3>
+    <p><code>GET /api/v1/events</code> opens a Server-Sent Events stream.
+       Events: level, on, off, group_on, group_off, group_level,
+       scan_complete, colour_temp, rgb.</p>
+    <pre><code>curl -N http://&lt;IP&gt;:5000/api/v1/events</code></pre>
+</div>
+
+<div class="section" id="troubleshooting">
+    <h2>11. Troubleshooting</h2>
+    <h3>No device found</h3>
+    <ul>
+        <li>Check if the USB adapter is connected: <code>lsusb</code></li>
+        <li>Hasseb: Look for <code>04cc:0802</code></li>
+        <li>FTDI: Look for <code>0403:6010</code> (FT2232H)</li>
+        <li>Check udev rules and user group membership (<code>dali</code>)</li>
+    </ul>
+    <h3>Bus scan finds no devices</h3>
+    <ul>
+        <li>Check DALI bus voltage (typ. 16V)</li>
+        <li>Check wiring (DALI is polarity-independent)</li>
+        <li>Run commissioning if devices have no short addresses</li>
+    </ul>
+    <h3>MikroE GPIO: No communication</h3>
+    <ul>
+        <li>Verify GPIO pin configuration (default: TX=14, RX=15)</li>
+        <li>For DALI 2 Click: Enable <em>TX inverted</em></li>
+        <li>Install gpiod: <code>pip install gpiod</code></li>
+    </ul>
+    <h3>MikroE FTDI: Connection fails</h3>
+    <ul>
+        <li>Check FTDI URL: default is <code>ftdi://ftdi:2232h/1</code></li>
+        <li>Install pyftdi: <code>pip install pyftdi</code></li>
+        <li>Unload kernel driver: <code>sudo rmmod ftdi_sio usbserial</code></li>
+    </ul>
+</div>
+
+{% endif %}
+{% endblock %}

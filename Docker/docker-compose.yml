@@ -1,0 +1,61 @@
+# =============================================================================
+# DALI ServUI – Docker Compose
+# Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+#
+# USB-Passthrough: Der Container braucht Zugriff auf das Hasseb DALI USB
+# Geraet (/dev/hidraw*). Standard ist ein spezifisches Device-Mapping
+# (sicherer als privileged: true).
+# =============================================================================
+
+services:
+  dali-servui:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    container_name: dali-servui
+    restart: unless-stopped
+
+    # USB-HID-Zugriff auf den Hasseb DALI USB Master.
+    # Pfad ggf. anpassen (ls -l /dev/hidraw* auf dem Host).
+    # Wenn mehrere hidraw-Devices existieren, alle nötigen mappen.
+    devices:
+      - /dev/hidraw0:/dev/hidraw0
+    # Alternative (weniger sicher, aber einfacher bei wechselnden hidraw-Nummern):
+    # privileged: true
+    # volumes:
+    #   - /dev:/dev
+
+    # Datenpersistenz + USB-Mapping in EINEM volumes-Block
+    volumes:
+      - dali-data:/app/data
+
+    # Netzwerk
+    ports:
+      - "5000:5000"
+
+    # Umgebungsvariablen
+    environment:
+      - DALI_HOST=0.0.0.0
+      - DALI_PORT=5000
+      - DALI_LANG=de
+      - DALI_LOG_LEVEL=INFO
+      # Optionaler API-Token (empfohlen, wenn die UI über das LAN erreichbar ist):
+      # - DALI_API_TOKEN=mein-geheimer-token
+      # CORS-Origins (Komma-Liste). Default leer = kein CORS-Header.
+      # - DALI_CORS_ORIGINS=https://homeassistant.local:8123
+      # SECRET_KEY: leer lassen → wird automatisch persistent generiert (data/secret_key)
+      # - DALI_SECRET_KEY=mein-flask-secret
+
+    # Ressourcen-Limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 64M
+
+volumes:
+  dali-data:
+    driver: local

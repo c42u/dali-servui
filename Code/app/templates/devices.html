@@ -1,0 +1,142 @@
+<!-- ========================================================================
+     DALI ServUI – Geräte-Übersicht
+     Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+     Version: 1.0.0 | Deploy: 2026-05-07
+     ======================================================================== -->
+{% extends "base.html" %}
+{% block title %}{{ t.devices_title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ t.devices_title }}</h1>
+    <button class="btn btn-primary" onclick="scanBus()">{{ t.scan_bus }}</button>
+</div>
+
+{% if devices %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>{{ t.device_address }}</th>
+            <th>{% if lang == 'de' %}Name{% else %}Name{% endif %}</th>
+            <th>{{ t.device_level }}</th>
+            <th>{{ t.device_type }}</th>
+            <th>{{ t.device_groups }}</th>
+            <th>{{ t.device_status }}</th>
+            <th>{{ t.actions }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for addr, dev in devices.items() %}
+        {% if not dev.present %}
+            {% set dev_state = 'absent' %}
+        {% elif dev.level > 0 %}
+            {% set dev_state = 'on' %}
+        {% else %}
+            {% set dev_state = 'off' %}
+        {% endif %}
+        <tr data-address="{{ addr }}" class="device-row device-row-{{ dev_state }}">
+            <td><strong>{{ addr }}</strong></td>
+            <td>
+                <input type="text" class="inline-edit" id="dev-name-{{ addr }}"
+                       value="{{ labels.devices.get(addr|string, '') }}"
+                       placeholder="{% if lang == 'de' %}Name vergeben...{% else %}Set name...{% endif %}"
+                       onchange="setDeviceLabel({{ addr }}, this.value)">
+            </td>
+            <td>
+                <div class="level-cell">
+                    <input type="range" min="0" max="254" value="{{ dev.level }}"
+                           class="table-slider"
+                           onchange="deviceLevel({{ addr }}, this.value)">
+                    <span class="level-value">{{ dev.level }}</span>
+                </div>
+            </td>
+            <td>{{ dev.device_type }}</td>
+            <td>
+                <div class="group-badges">
+                    {% for g in dev.groups %}
+                    <span class="group-badge" title="{% if lang == 'de' %}Klicken zum Entfernen{% else %}Click to remove{% endif %}"
+                          onclick="removeFromGroup({{ addr }}, {{ g }})">
+                        {{ labels.groups.get(g|string, '') or ('G' ~ g) }}
+                        <span class="badge-x">&times;</span>
+                    </span>
+                    {% endfor %}
+                    <button class="btn-add-group" onclick="showAddGroup({{ addr }})"
+                            title="{% if lang == 'de' %}Zu Gruppe hinzufügen{% else %}Add to group{% endif %}">+</button>
+                </div>
+            </td>
+            <td>
+                <span class="device-state-badge device-state-{{ dev_state }}">
+                    {% if dev_state == 'absent' %}{{ t.device_absent }}
+                    {% elif dev_state == 'on' %}{{ t.device_on }}
+                    {% else %}{{ t.device_off }}{% endif %}
+                </span>
+            </td>
+            <td>
+                <button class="btn-sm btn-on" onclick="deviceOn({{ addr }})">{{ t.device_on }}</button>
+                <button class="btn-sm btn-off" onclick="deviceOff({{ addr }})">{{ t.device_off }}</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>{{ t.no_device }}</p>
+    <button class="btn btn-primary" onclick="scanBus()">{{ t.scan_bus }}</button>
+</div>
+{% endif %}
+
+<!-- Gruppe-hinzufügen Dialog -->
+<div id="add-group-dialog" class="modal-overlay" style="display:none;" onclick="hideAddGroup(event)">
+    <div class="modal-box">
+        <h3>{% if lang == 'de' %}Zu Gruppe hinzufügen{% else %}Add to group{% endif %}</h3>
+        <div class="group-select-grid" id="group-select-grid">
+            {% for g in range(16) %}
+            <button class="btn group-select-btn" data-group="{{ g }}" onclick="confirmAddGroup({{ g }})">
+                {{ labels.groups.get(g|string, '') or ('G' ~ g) }}
+            </button>
+            {% endfor %}
+        </div>
+        <button class="btn" onclick="hideAddGroup()">{{ t.cancel }}</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _addGroupAddr = null;
+
+async function setDeviceLabel(address, name) {
+    await apiPost(`/api/v1/labels/device/${address}`, { name });
+}
+
+async function removeFromGroup(address, group) {
+    await fetch(`/api/v1/devices/${address}/groups`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group })
+    });
+    location.reload();
+}
+
+function showAddGroup(address) {
+    _addGroupAddr = address;
+    document.getElementById('add-group-dialog').style.display = 'flex';
+}
+
+function hideAddGroup(event) {
+    if (!event || event.target.classList.contains('modal-overlay')) {
+        document.getElementById('add-group-dialog').style.display = 'none';
+        _addGroupAddr = null;
+    }
+}
+
+async function confirmAddGroup(group) {
+    if (_addGroupAddr !== null) {
+        await apiPost(`/api/v1/devices/${_addGroupAddr}/groups`, { group });
+        hideAddGroup();
+        location.reload();
+    }
+}
+</script>
+{% endblock %}

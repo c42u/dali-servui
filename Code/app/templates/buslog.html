@@ -1,0 +1,254 @@
+<!-- ========================================================================
+     DALI ServUI – Bus-Protokoll (Echtzeit-Monitor)
+     Autor: c42u | Co-Autor: ClaudeCode | Lizenz: GPLv3
+     Version: 1.0.0 | Deploy: 2026-05-07
+     ======================================================================== -->
+{% extends "base.html" %}
+{% block title %}{{ t.nav_log }}{% endblock %}
+
+{% block content %}
+<h1>{{ t.nav_log }}</h1>
+
+<div class="section buslog-controls">
+    <div class="buslog-toolbar">
+        <button class="btn btn-primary" id="btn-toggle" onclick="toggleBuslog()">
+            {% if lang == 'de' %}Pause{% else %}Pause{% endif %}
+        </button>
+        <button class="btn" onclick="clearBuslog()">
+            {% if lang == 'de' %}Löschen{% else %}Clear{% endif %}
+        </button>
+        <label class="toggle-row buslog-autoscroll">
+            <input type="checkbox" id="autoscroll" checked>
+            <span>Auto-Scroll</span>
+        </label>
+        <span class="buslog-count" id="entry-count">0 Einträge</span>
+    </div>
+</div>
+
+<div class="section buslog-section">
+    <div class="buslog-table-wrap" id="buslog-wrap">
+        <table class="buslog-table" id="buslog-table">
+            <thead>
+                <tr>
+                    <th class="col-time">Zeit</th>
+                    <th class="col-dir">Dir</th>
+                    <th class="col-addr">Addr</th>
+                    <th class="col-cmd">Cmd</th>
+                    <th class="col-resp">Resp</th>
+                    <th class="col-ms">ms</th>
+                    <th class="col-desc">Beschreibung</th>
+                    <th class="col-err">Fehler</th>
+                </tr>
+            </thead>
+            <tbody id="buslog-body">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Bus-Sniffer -->
+<div class="section">
+    <h2>{% if lang == 'de' %}Bus lauschen (Sniffer){% else %}Listen on Bus (Sniffer){% endif %}</h2>
+    <p>{% if lang == 'de' %}Empfängt passiv alle DALI-Frames auf dem Bus. Nützlich um zu sehen welche Geräte kommunizieren.{% else %}Passively receives all DALI frames on the bus. Useful to see which devices communicate.{% endif %}</p>
+    <div class="buslog-raw-form">
+        <label>{% if lang == 'de' %}Dauer (Sek.):{% else %}Duration (sec):{% endif %}
+            <input type="number" id="sniff-duration" value="10" min="1" max="60" class="buslog-hex-input" style="width:60px;">
+        </label>
+        <button class="btn btn-primary" id="btn-sniff" onclick="startSniff()">
+            {% if lang == 'de' %}Lauschen starten{% else %}Start Listening{% endif %}
+        </button>
+    </div>
+    <div id="sniff-status" class="status-message" style="display:none;"></div>
+</div>
+
+<!-- Raw-Befehl senden (zum Testen) -->
+<div class="section">
+    <h2>{% if lang == 'de' %}Raw DALI-Befehl senden{% else %}Send Raw DALI Command{% endif %}</h2>
+    <div class="buslog-raw-form">
+        <label>Addr (hex):
+            <input type="text" id="raw-addr" value="FF" maxlength="2" class="buslog-hex-input">
+        </label>
+        <label>Cmd (hex):
+            <input type="text" id="raw-cmd" value="05" maxlength="2" class="buslog-hex-input">
+        </label>
+        <label>
+            <input type="checkbox" id="raw-reply">
+            {% if lang == 'de' %}Antwort erwarten{% else %}Expect reply{% endif %}
+        </label>
+        <label>
+            <input type="checkbox" id="raw-twice">
+            {% if lang == 'de' %}2x senden{% else %}Send twice{% endif %}
+        </label>
+        <button class="btn btn-primary" onclick="sendRawCommand()">
+            {% if lang == 'de' %}Senden{% else %}Send{% endif %}
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    let lastTimestamp = 0;
+    let polling = true;
+    let pollInterval = null;
+
+    /** Bus-Log-Einträge vom Server holen */
+    async function fetchEntries() {
+        if (!polling) return;
+        try {
+            const resp = await fetch(`/api/v1/buslog?limit=200&since=${lastTimestamp}`);
+            const data = await resp.json();
+            if (data.entries && data.entries.length > 0) {
+                appendEntries(data.entries);
+                lastTimestamp = data.entries[data.entries.length - 1].ts;
+            }
+            document.getElementById('btn-toggle').textContent =
+                data.enabled ? 'Pause' : 'Gestoppt (Server)';
+        } catch (e) {
+            console.error('Buslog fetch error:', e);
+        }
+    }
+
+    /** Einträge zur Tabelle hinzufügen */
+    function appendEntries(entries) {
+        const tbody = document.getElementById('buslog-body');
+        const wrap = document.getElementById('buslog-wrap');
+        const countEl = document.getElementById('entry-count');
+
+        for (const e of entries) {
+            const tr = document.createElement('tr');
+            if (e.error) tr.classList.add('buslog-error');
+            if (e.resp >= 0) tr.classList.add('buslog-response');
+
+            const time = new Date(e.ts * 1000);
+            const timeStr = time.toLocaleTimeString('de-DE', {
+                hour12: false, hour: '2-digit', minute: '2-digit',
+                second: '2-digit', fractionalSecondDigits: 3
+            });
+
+            tr.innerHTML = `
+                <td class="col-time mono">${timeStr}</td>
+                <td class="col-dir">${e.dir}</td>
+                <td class="col-addr mono">${e.addr_hex}</td>
+                <td class="col-cmd mono">${e.cmd_hex}</td>
+                <td class="col-resp mono">${e.resp_hex}</td>
+                <td class="col-ms mono">${e.ms.toFixed(1)}</td>
+                <td class="col-desc">${escapeHtml(e.desc)}</td>
+                <td class="col-err">${escapeHtml(e.error)}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        // Alte Zeilen entfernen (max 500 im DOM)
+        while (tbody.rows.length > 500) {
+            tbody.deleteRow(0);
+        }
+
+        if (countEl) {
+            countEl.textContent = tbody.rows.length + ' Einträge';
+        }
+
+        // Auto-Scroll
+        if (document.getElementById('autoscroll').checked) {
+            wrap.scrollTop = wrap.scrollHeight;
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    /** Polling starten */
+    function startPolling() {
+        if (pollInterval) return;
+        pollInterval = setInterval(fetchEntries, 1000);
+        fetchEntries();
+    }
+
+    /** Polling stoppen */
+    function stopPolling() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+    }
+
+    /** Pause/Resume */
+    window.toggleBuslog = function() {
+        polling = !polling;
+        const btn = document.getElementById('btn-toggle');
+        if (polling) {
+            btn.textContent = 'Pause';
+            startPolling();
+        } else {
+            btn.textContent = 'Weiter';
+            stopPolling();
+        }
+    };
+
+    /** Log löschen */
+    window.clearBuslog = async function() {
+        await fetch('/api/v1/buslog', { method: 'DELETE' });
+        document.getElementById('buslog-body').innerHTML = '';
+        document.getElementById('entry-count').textContent = '0 Einträge';
+        lastTimestamp = 0;
+    };
+
+    /** Bus-Sniffer starten */
+    window.startSniff = async function() {
+        const duration = parseInt(document.getElementById('sniff-duration').value) || 10;
+        const statusEl = document.getElementById('sniff-status');
+        const btn = document.getElementById('btn-sniff');
+
+        statusEl.style.display = 'block';
+        statusEl.className = 'status-message info';
+        statusEl.textContent = `Lausche ${duration} Sekunden auf dem Bus...`;
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch('/api/v1/sniff', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ duration })
+            });
+            const data = await resp.json();
+
+            statusEl.className = 'status-message success';
+            statusEl.textContent = `${data.count} Frames empfangen`;
+            setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+        } catch (e) {
+            statusEl.className = 'status-message error';
+            statusEl.textContent = 'Fehler: ' + e.message;
+        }
+        btn.disabled = false;
+    };
+
+    /** Raw-Befehl senden */
+    window.sendRawCommand = async function() {
+        const addr = parseInt(document.getElementById('raw-addr').value, 16);
+        const cmd = parseInt(document.getElementById('raw-cmd').value, 16);
+        const expectReply = document.getElementById('raw-reply').checked;
+        const sendTwice = document.getElementById('raw-twice').checked;
+
+        if (isNaN(addr) || isNaN(cmd)) {
+            alert('Ungültige Hex-Werte');
+            return;
+        }
+
+        await fetch('/api/v1/raw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                address: addr, command: cmd,
+                expect_reply: expectReply, send_twice: sendTwice
+            })
+        });
+    };
+
+    // Starten
+    startPolling();
+})();
+</script>
+{% endblock %}
