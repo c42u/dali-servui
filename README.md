@@ -86,7 +86,41 @@ sudo systemctl start dali-servui
 
 Web UI: `http://<host-ip>:5000`
 
-### Docker
+### Docker (pull from Docker Hub)
+
+The pre-built image is available on Docker Hub as
+[`c42u/dali-servui`](https://hub.docker.com/r/c42u/dali-servui)
+(multi-arch: `amd64` + `arm64`):
+
+```bash
+docker pull c42u/dali-servui:latest
+```
+
+Minimal `compose.yaml`:
+
+```yaml
+services:
+  dali-servui:
+    image: c42u/dali-servui:latest
+    container_name: dali-servui
+    restart: unless-stopped
+    devices:
+      - /dev/hidraw0:/dev/hidraw0   # Hasseb USB DALI Master
+    volumes:
+      - dali-data:/app/data
+    ports:
+      - "5000:5000"
+    environment:
+      DALI_HOST: 0.0.0.0
+      DALI_PORT: 5000
+      DALI_LANG: de
+      # DALI_API_TOKEN: my-secret-token
+
+volumes:
+  dali-data:
+```
+
+### Docker (build from source)
 
 ```bash
 cd dali-servui/Docker
@@ -184,6 +218,8 @@ The software is provided "as is" without warranty. Use at your own risk.
 ## Links
 
 - [GitHub](https://github.com/c42u/dali-servui)
+- [Docker Hub](https://hub.docker.com/r/c42u/dali-servui)
+- [Documentation (English)](Dokumentation/DALI_ServUI_Documentation_v1.0.0.md)
 - [Impressum / Legal Notice](IMPRESSUM.md)
 - [Support](https://buymeacoffee.com/c42u)
 
@@ -275,7 +311,41 @@ sudo systemctl start dali-servui
 
 Web-UI: `http://<host-ip>:5000`
 
-### Docker
+### Docker (Image von Docker Hub)
+
+Das vorgebaute Image liegt auf Docker Hub als
+[`c42u/dali-servui`](https://hub.docker.com/r/c42u/dali-servui)
+(multi-arch: `amd64` + `arm64`):
+
+```bash
+docker pull c42u/dali-servui:latest
+```
+
+Minimale `compose.yaml`:
+
+```yaml
+services:
+  dali-servui:
+    image: c42u/dali-servui:latest
+    container_name: dali-servui
+    restart: unless-stopped
+    devices:
+      - /dev/hidraw0:/dev/hidraw0   # Hasseb USB DALI Master
+    volumes:
+      - dali-data:/app/data
+    ports:
+      - "5000:5000"
+    environment:
+      DALI_HOST: 0.0.0.0
+      DALI_PORT: 5000
+      DALI_LANG: de
+      # DALI_API_TOKEN: mein-geheimer-token
+
+volumes:
+  dali-data:
+```
+
+### Docker (Build aus Quellcode)
 
 ```bash
 cd dali-servui/Docker
@@ -375,5 +445,7 @@ bereitgestellt. Nutzung auf eigene Gefahr.
 ## Links
 
 - [GitHub](https://github.com/c42u/dali-servui)
+- [Docker Hub](https://hub.docker.com/r/c42u/dali-servui)
+- [Dokumentation (Deutsch)](Dokumentation/DALI_ServUI_Dokumentation_v1.0.0.md)
 - [Impressum](IMPRESSUM.md)
 - [Unterstützung](https://buymeacoffee.com/c42u)
