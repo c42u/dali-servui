@@ -72,3 +72,32 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Docker-Hub-Repo-Description aus README + IMPRESSUM zusammenbauen.
+      # Der IMPRESSUM.md-Link im README zeigt auf die separate Datei, die
+      # auf Docker Hub nicht existiert – also durch einen Anker ersetzen
+      # und das IMPRESSUM-Inhalt am Ende anhängen (analog zum
+      # grocylink-Pattern auf Docker Hub).
+      - name: Compose Docker Hub description
+        if: github.ref == 'refs/heads/main'
+        run: |
+          {
+            sed 's|](IMPRESSUM.md)|](#impressum)|g' README.md
+            echo
+            echo "---"
+            echo
+            echo '# Impressum <a name="impressum"></a>'
+            echo
+            tail -n +2 IMPRESSUM.md
+          } > /tmp/dockerhub-description.md
+          wc -c /tmp/dockerhub-description.md
+
+      - name: Update Docker Hub description
+        if: github.ref == 'refs/heads/main'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/dali-servui
+          short-description: "Web-based DALI lighting controller with multi-hardware support, REST API, SSE and multi-room dashboard. Self-hosted."
+          readme-filepath: /tmp/dockerhub-description.md
