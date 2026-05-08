@@ -590,7 +590,7 @@ that a user opens in the same browser can send commands to the DALI
 luminaires via CORS or simply via CSRF-capable `POST` requests. At
 least one of the two protections should be active.
 
-### Frontend authentication (since v0.9.0)
+### Frontend authentication
 
 When `DALI_API_TOKEN` is set, the backend writes the token into a
 hidden `<meta name="x-api-token">` of the rendered page. The bundled
@@ -606,7 +606,7 @@ query parameter, because `EventSource` cannot send custom headers.
 > auth or OIDC in front – the token still applies to external API
 > clients (Home Assistant).
 
-### HTTP security headers (since v0.9.0)
+### HTTP security headers
 
 All HTTP responses contain:
 
@@ -627,8 +627,8 @@ would replace this.
 |--------|-----|--------|
 | Bus log | `MAX_BUSLOG_SIZE = 500` entries | Ring buffer, oldest entries drop out |
 | SSE queue per client | `maxsize = 50` events | Slow clients are kicked out of the listener pool |
-| **Total SSE listeners** | `MAX_SSE_LISTENERS = 50` (since v0.9.0) | Anti-DoS: 51st `/api/v1/events` call gets `503` |
-| **JSON loader** | `MAX_JSON_BYTES = 5 MB` (since v0.9.0) | Loader returns the default if `data/*.json` has been bloated |
+| **Total SSE listeners** | `MAX_SSE_LISTENERS = 50` | Anti-DoS: 51st `/api/v1/events` call gets `503` |
+| **JSON loader** | `MAX_JSON_BYTES = 5 MB` | Loader returns the default if `data/*.json` has been bloated |
 
 ### Secrets
 
@@ -720,87 +720,7 @@ Queries are answered with `0xFF`. This mode is useful for:
 
 ### v1.0.0 – 2026-05-07 (current version)
 
-First public release. Functionally on the level of 0.9.0; the focus of
-this version: UI bug fixes, cleaning up the documentation and version
-consistency across all source files.
-
-- **Bug fixed – device status always showed "green"**: The status
-  column in `/devices` interpreted the internal `present` flag (bus
-  reachability at the last scan) as "switched on". As a result, every
-  device appeared as "active" even if it was off. The column now shows
-  three states as a pill badge, analogous to the group members:
-    - **On** (green) – `level > 0`
-    - **Off** (grey) – `level == 0` and reachable on the bus
-    - **Not reachable** (orange) – `present == False`
-- **Improved visibility of the switching state**: The table row also
-  gets a subtle indicator (left-hand colour bar plus a slight
-  background), the same visual language as the group cards
-  (`group-on/off/warning`).
-- **Live update without reload**: The JS functions `deviceOn`,
-  `deviceOff` and `deviceLevel` synchronise the badge, the row class
-  and the slider value display directly after the API call (new helper
-  `updateDeviceRow`).
-- **Navbar "Kaffee?" → "Kaffee"** (DE), "Coffee?" → "Coffee" (EN).
-- **Version consistency**: All 21 headers in Python, HTML, CSS, JS,
-  Bash and Docker files have been unified to version 1.0.0 (deploy
-  2026-05-07). Previously, files carried versions between 0.1.0 and
-  0.6.0 depending on the time of the last change.
-- **Documentation cleaned up**: Older documentation and review-report
-  versions (v0.2.0, v0.8.0, v0.9.0) have been moved out of
-  `Dokumentation/` and `Reviewbericht/` into `Versionssicherung/v<X.Y.Z>/`.
-  Only the current version remains in the main folders.
-- **README rework**: Feature list at version 1.0.0, hardware table
-  with a status column (production vs. coming soon), full table of ENV
-  variables, updated API overview.
-
-### v0.9.0 – 2026-05-05
-
-- **HTTP security headers**: `X-Frame-Options`, `X-Content-Type-Options`,
-  `Referrer-Policy`, `Content-Security-Policy`
-- **SSE listener cap** `MAX_SSE_LISTENERS = 50` with a `503` reply on saturation
-- **JSON loader hardening**: 5 MB size cap, typed allow-list for
-  `load_driver_config`
-- **Frontend auth**: token via `<meta name="x-api-token">`; JS sends
-  the `X-API-Token` header; `EventSource` uses the `?token=...` query
-- **Buy-me-a-coffee link** in the navbar next to "Help"
-
-### v0.8.0 – 2026-05-05
-
-- **MikroE coming-soon stamp** in the settings dialog on the driver cards
-- **Healthz endpoint** `GET /healthz` (auth-free) for container health checks
-- **SECRET_KEY auto-generation** persisted in `data/secret_key` (0600)
-- **CORS origins via ENV** `DALI_CORS_ORIGINS` (comma list, default: empty)
-- **Compose bug fixed**: duplicate `volumes:` block, USB mapping as default
-- **Hardening**: label length cap, dashboard item schema validation, sniff duration floor
-- **Thread-safe commissioning log operations**, signal handler in the app factory
-- LICENSE file (full GPLv3 text) added
-
-### v0.7.0 – 2026-04-04
-
-Multi-dashboard per room, REST API for dashboards, reusable group-card
-partials, default dashboard protected.
-
-### v0.6.0 – 2026-04-04
-
-Group API with members and level, CORS header for the API, SSE stream
-`/api/v1/events` with keepalive.
-
-### v0.5.x – 2026-04-04
-
-Commissioning with live stream (SSE), python-dali subprocess for Hasseb,
-CLI script `dali_commission.py`, bus sniffer, driver stop/start API,
-address reset and factory reset.
-
-### v0.4.x – 2026-04-03
-
-Bus log with ring buffer and human-readable frame descriptions, group
-assignment via the UI (AddToGroup/RemoveFromGroup), persistent labels for
-devices and groups, Lucide icons in the navigation.
-
-### v0.3.x – 2026-03-30
-
-DT6/DT8 (tunable white, RGB), feature toggles, extended API, bilingual
-help page with TOC, integrated reverse-proxy hint.
+First public release. 
 
 \newpage
 
